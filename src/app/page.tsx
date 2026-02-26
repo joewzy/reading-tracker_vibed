@@ -1,65 +1,604 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useSession, signIn, signOut } from 'next-auth/react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  Plus, BookOpen, TrendingUp, Search, Quote as QuoteIcon,
+  Flame, Award, PlusCircle, LogOut, Github, Mail, Lock,
+  User as UserIcon, ArrowRight, Trash2, Target, CheckCircle,
+  Clock, BookMarked, X, Settings, Bell, Zap, Star, Shield, Trophy, StickyNote
+} from 'lucide-react'
+import confetti from 'canvas-confetti'
+import styles from './page.module.css'
+import { MOTIVATIONAL_QUOTES, TOP_BOOKS } from '@/lib/data'
+import ReadingChart from '@/components/ReadingChart'
+import ReadingTimer from '@/components/ReadingTimer'
+import BookNotes from '@/components/BookNotes'
+import ReadingCalendar from '@/components/ReadingCalendar'
+import ThemeRegistry from '@/components/ThemeRegistry'
+import XPShop from '@/components/XPShop'
+import ChallengePanel from '@/components/ChallengePanel'
+import AiBuddy from '@/components/AiBuddy'
+
+interface Book { id: string; title: string; author: string; totalPages: number; currentPage: number; status: string; coverImage?: string | null; description?: string | null }
+interface ActivitySession { id: string; pagesRead: number; duration: number | null; date: string; book: { title: string } }
+interface Goal { id: string; target: number; type: string }
+interface Insights { streak: number; chartData: any[]; averagePPH?: number }
+interface UserStats { xp: number; level: number; notificationEmail: string | null; streakFreezes: number; activeTheme: string; achievements: { type: string }[] }
+interface Challenge { id: string; title: string; description: string; type: string; target: number; xpReward: number; users: any[] }
+
+type Category = keyof typeof TOP_BOOKS
+
+const ACHIEVEMENTS: Record<string, { label: string; emoji: string; desc: string }> = {
+  FIRST_PAGE: { label: 'First Page', emoji: '📖', desc: 'Log your first reading session' },
+  ON_FIRE: { label: 'On Fire', emoji: '🔥', desc: 'Maintain a 3-day streak' },
+  WEEK_WARRIOR: { label: 'Week Warrior', emoji: '🏆', desc: 'Maintain a 7-day streak' },
+  BOOKWORM: { label: 'Bookworm', emoji: '📚', desc: 'Complete your first book' },
+  CENTURY: { label: 'Century', emoji: '🌟', desc: 'Log 100+ pages in one session' },
+  SCHOLAR: { label: 'Scholar', emoji: '🎓', desc: 'Reach Level 5' },
+}
+const LEVEL_NAMES = ['Apprentice', 'Scholar', 'Sage', 'Luminary', 'Oracle', 'Legend']
+const XP_PER_LEVEL = 200
+
+function getLevelInfo(xp: number) {
+  const level = Math.floor(xp / XP_PER_LEVEL) + 1
+  const currentLevelXp = xp % XP_PER_LEVEL
+  const progress = (currentLevelXp / XP_PER_LEVEL) * 100
+  const name = LEVEL_NAMES[Math.min(level - 1, LEVEL_NAMES.length - 1)]
+  return { level, currentLevelXp, progress, name }
+}
+
+const cv = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.07 } } }
+const iv = { hidden: { opacity: 0, y: 18 }, visible: { opacity: 1, y: 0 } }
+
+export default function Dashboard() {
+  const { data: session, status } = useSession()
+  const [books, setBooks] = useState<Book[]>([])
+  const [sessions, setSessions] = useState<ActivitySession[]>([])
+  const [goal, setGoal] = useState<Goal | null>(null)
+  const [insights, setInsights] = useState<Insights>({ streak: 0, chartData: [] })
+  const [userStats, setUserStats] = useState<UserStats>({ xp: 0, level: 1, notificationEmail: null, streakFreezes: 0, activeTheme: 'DARK_DEFAULT', achievements: [] })
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'reading' | 'completed' | 'activity' | 'achievements'>('reading')
+  const [showAddBook, setShowAddBook] = useState(false)
+  const [showGoalModal, setShowGoalModal] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [newBook, setNewBook] = useState({ title: '', author: '', totalPages: '', coverImage: null as string | null, description: '' })
+  const [goalTarget, setGoalTarget] = useState('')
+  const [notifEmail, setNotifEmail] = useState('')
+  const [savingEmail, setSavingEmail] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<Category>('PRODUCTIVITY')
+  const [logPages, setLogPages] = useState<Record<string, string>>({})
+  const [xpToast, setXpToast] = useState<{ xp: number; achievement?: string } | null>(null)
+  const [notesPanel, setNotesPanel] = useState<{ bookId: string; bookTitle: string } | null>(null)
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
+  const [authForm, setAuthForm] = useState({ name: '', email: '', password: '' })
+  const [authError, setAuthError] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
+  const [challenges, setChallenges] = useState<Challenge[]>([])
+
+  // Phase 3: Book Search State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+
+  const handleSearchBooks = async () => {
+    if (!searchQuery.trim()) return
+    setIsSearching(true)
+    try {
+      const res = await fetch(`/api/books/search?q=${encodeURIComponent(searchQuery)}`)
+      if (res.ok) {
+        const data = await res.json()
+        setSearchResults(data)
+      }
+    } catch (err) {
+      console.error('Search failed', err)
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const selectBookFromResult = (book: any) => {
+    setNewBook({
+      title: book.title,
+      author: book.author,
+      totalPages: book.totalPages.toString(),
+      // @ts-ignore
+      coverImage: book.coverImage,
+      description: book.description
+    })
+    setSearchResults([])
+    setSearchQuery('')
+  }
+
+  const quote = useMemo(() => MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)], [])
+
+  useEffect(() => {
+    if (status === 'authenticated') fetchData()
+    else if (status === 'unauthenticated') setLoading(false)
+  }, [status])
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [bR, gR, iR, sR, uR, cR] = await Promise.all([
+        fetch('/api/books'), fetch('/api/goals'), fetch('/api/insights'),
+        fetch('/api/sessions'), fetch('/api/user/settings'), fetch('/api/challenges'),
+      ])
+      const [bD, gD, iD, sD, uD, cD] = await Promise.all([bR.json(), gR.json(), iR.json(), sR.json(), uR.json(), cR.json()])
+      if (Array.isArray(bD)) setBooks(bD)
+      if (gD && !gD.error) setGoal(gD)
+      if (iD && !iD.error) setInsights(iD)
+      if (Array.isArray(sD)) setSessions(sD)
+      if (uD && !uD.error) { setUserStats(uD); setNotifEmail(uD.notificationEmail || '') }
+      if (Array.isArray(cD)) setChallenges(cD)
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }, [])
+
+  const showXpPop = (xp: number, ach?: string) => {
+    setXpToast({ xp, achievement: ach })
+    setTimeout(() => setXpToast(null), 3500)
+  }
+
+  const boom = () => confetti({ particleCount: 130, spread: 65, origin: { y: 0.6 }, colors: ['#8b5cf6', '#10b981', '#f59e0b'] })
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault(); setAuthError(''); setAuthLoading(true)
+    try {
+      if (authMode === 'signup') {
+        const r = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(authForm) })
+        const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Failed')
+        const lr = await signIn('credentials', { redirect: false, email: authForm.email, password: authForm.password })
+        if (lr?.error) throw new Error(lr.error)
+      } else {
+        const r = await signIn('credentials', { redirect: false, email: authForm.email, password: authForm.password })
+        if (r?.error) throw new Error(r.error || 'Invalid credentials')
+      }
+    } catch (err: any) { setAuthError(err.message) }
+    finally { setAuthLoading(false) }
+  }
+
+  const handleAddBook = async (e: React.FormEvent | null, data?: any) => {
+    if (e) e.preventDefault()
+    const payload = data || newBook
+    const r = await fetch('/api/books', { method: 'POST', body: JSON.stringify(payload) })
+    if (r.ok) { setNewBook({ title: '', author: '', totalPages: '', coverImage: null, description: '' }); setShowAddBook(false); fetchData(); boom() }
+  }
+
+  const handleDeleteBook = async (id: string) => {
+    if (!confirm('Remove this book?')) return
+    await fetch(`/api/books?id=${id}`, { method: 'DELETE' }); fetchData()
+  }
+
+  const handleLogSession = async (bookId: string) => {
+    const pages = logPages[bookId]; if (!pages || parseInt(pages) <= 0) return
+    const r = await fetch('/api/sessions', { method: 'POST', body: JSON.stringify({ bookId, pagesRead: pages }) })
+    if (r.ok) {
+      const d = await r.json(); setLogPages(p => ({ ...p, [bookId]: '' })); fetchData()
+      boom(); showXpPop(d.xpGained ?? 10, d.newAchievements?.[0])
+      if (d.autoCompleted) setTimeout(() => alert('🎉 You finished the book!'), 600)
+    }
+  }
+
+  const handleSetGoal = async (e: React.FormEvent) => {
+    e.preventDefault(); const now = new Date()
+    const r = await fetch('/api/goals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: goalTarget, type: 'PAGES', month: now.getMonth() + 1, year: now.getFullYear() }) })
+    if (r.ok) { setShowGoalModal(false); setGoalTarget(''); fetchData() }
+  }
+
+  const handleSaveEmail = async (e: React.FormEvent) => {
+    e.preventDefault(); setSavingEmail(true)
+    const body = { notificationEmail: notifEmail, activeTheme: userStats.activeTheme }
+    await fetch('/api/user/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    setSavingEmail(false); fetchData(); setShowSettings(false)
+  }
+
+  const handleThemeChange = async (theme: string) => {
+    setUserStats(prev => ({ ...prev, activeTheme: theme }))
+    await fetch('/api/user/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ activeTheme: theme })
+    })
+  }
+
+  if (loading) return <div className={styles.loaderContainer}><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className={styles.loader} /></div>
+
+  if (status === 'unauthenticated') {
+    return (
+      <div className={styles.landingPage}>
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className={styles.landingContent}>
+          <div className={styles.landingBranding}>
+            <div className={styles.landingLogo}><BookOpen size={72} className={styles.logoGlow} /></div>
+            <h1 className={styles.landingTitle}>ReaderVerse</h1>
+            <p className={styles.landingSubtitle}>Your gamified reading sanctuary. Level up your mind.</p>
+            <div className={styles.landingFeatures}><span>🎮 XP & Levels</span><span>🏆 Achievements</span><span>📧 Daily Reminders</span></div>
+          </div>
+          <div className={`${styles.authCard} glass-card`}>
+            <div className={styles.authTabs}>
+              <button className={`${styles.authTab} ${authMode === 'login' ? styles.activeAuthTab : ''}`} onClick={() => setAuthMode('login')}>Login</button>
+              <button className={`${styles.authTab} ${authMode === 'signup' ? styles.activeAuthTab : ''}`} onClick={() => setAuthMode('signup')}>Sign Up</button>
+            </div>
+            <form onSubmit={handleAuth} className={styles.authForm}>
+              <AnimatePresence>
+                {authMode === 'signup' && (
+                  <motion.div key="name" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className={styles.inputGroup}>
+                    <UserIcon size={16} className={styles.inputIcon} />
+                    <input type="text" placeholder="Full Name" required value={authForm.name} onChange={e => setAuthForm({ ...authForm, name: e.target.value })} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div className={styles.inputGroup}>
+                <Mail size={16} className={styles.inputIcon} />
+                <input type="email" placeholder="Email" required value={authForm.email} onChange={e => setAuthForm({ ...authForm, email: e.target.value })} />
+              </div>
+              <div className={styles.inputGroup} style={{ marginTop: '0.85rem' }}>
+                <Lock size={16} className={styles.inputIcon} />
+                <input type="password" placeholder="Password" required value={authForm.password} onChange={e => setAuthForm({ ...authForm, password: e.target.value })} />
+              </div>
+              {authError && <p className={styles.errorText}>{authError}</p>}
+              <button type="submit" className={styles.submitAuthBtn} disabled={authLoading}>
+                {authLoading ? 'Processing...' : authMode === 'login' ? 'Enter Sanctuary' : 'Begin Journey'}
+                {!authLoading && <ArrowRight size={16} />}
+              </button>
+            </form>
+            <div className={styles.divider}><span>or</span></div>
+            <button className={styles.githubBtn} onClick={() => signIn('github')}><Github size={16} /> Continue with GitHub</button>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
+  const getEstDaysToFinish = (book: Book) => {
+    if (!insights?.averagePPH || insights.averagePPH <= 0) return null
+    const pagesLeft = book.totalPages - book.currentPage
+    if (pagesLeft <= 0) return 0
+    // Assume 1 hour of reading per day for calculation
+    const hoursNeeded = pagesLeft / insights.averagePPH
+    return Math.ceil(hoursNeeded)
+  }
+
+  const { level, currentLevelXp, progress: xpProgress, name: levelName } = getLevelInfo(userStats.xp)
+  const activeBooks = books.filter(b => b.status !== 'COMPLETED')
+  const completedBooks = books.filter(b => b.status === 'COMPLETED')
+  const totalPagesRead = books.reduce((a, b) => a + b.currentPage, 0)
+  const progressPercent = goal ? Math.min((totalPagesRead / goal.target) * 100, 100) : 0
+  const unlockedTypes = new Set((userStats.achievements || []).map(a => a.type))
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="container">
+      <ThemeRegistry theme={userStats.activeTheme} />
+
+      {activeBooks.length > 0 && (
+        <AiBuddy
+          bookId={activeBooks[0].id}
+          bookTitle={activeBooks[0].title}
+          bookAuthor={activeBooks[0].author}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+      )}
+
+      {/* XP Toast */}
+      <AnimatePresence>
+        {xpToast && (
+          <motion.div initial={{ opacity: 0, y: 60, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 60, scale: 0.8 }} className={styles.xpToast}>
+            <Zap size={16} className={styles.xpIcon} />
+            <span>+{xpToast.xp} XP</span>
+            {xpToast.achievement && <span className={styles.achievementToast}>{ACHIEVEMENTS[xpToast.achievement]?.emoji} {ACHIEVEMENTS[xpToast.achievement]?.label} Unlocked!</span>}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
+      <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className={styles.header}>
+        <div className={styles.brand}>
+          <div className={styles.logoIcon}><BookOpen size={28} color="var(--primary)" /></div>
+          <div><h1 className={styles.title}>ReaderVerse</h1><p className={styles.subtitle}>Welcome back, {session?.user?.name || session?.user?.email?.split('@')[0] || 'Reader'}.</p></div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className={styles.xpBarWrap}>
+          <div className={styles.levelBadge}><Star size={11} /> Lv.{level} {levelName}</div>
+          <div className={styles.xpBarOuter}><motion.div className={styles.xpBarInner} initial={{ width: 0 }} animate={{ width: `${xpProgress}%` }} transition={{ duration: 1.2, ease: [0.4, 0, 0.2, 1] }} /></div>
+          <span className={styles.xpLabel}>{currentLevelXp}/{XP_PER_LEVEL} XP</span>
         </div>
-      </main>
-    </div>
-  );
+        <div className={styles.headerActions}>
+          <XPShop xp={userStats.xp} streakFreezes={userStats.streakFreezes} onPurchase={fetchData} />
+          <button className={styles.goalBtn} onClick={() => setShowGoalModal(true)}><Target size={15} /> {goal ? `${goal.target} pg goal` : 'Set Goal'}</button>
+          <button className="btn-primary" onClick={() => setShowAddBook(true)}><Plus size={15} /> Add Book</button>
+          <button className={styles.iconBtn} onClick={() => setShowSettings(true)}><Settings size={17} /></button>
+          <button className={styles.logoutBtn} onClick={() => signOut()}><LogOut size={17} /></button>
+        </div>
+      </motion.header>
+
+      {/* Quote Area (Full Width) */}
+      <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={styles.quoteArea}>
+        <div className={`${styles.quoteCard} glass-card`}>
+          <QuoteIcon className={styles.quoteIcon} size={20} />
+          <p className={styles.quoteText}>{quote.text}</p>
+          <p className={styles.quoteAuthor}>— {quote.author}</p>
+        </div>
+      </motion.section>
+
+      {/* Stats & Challenges Grid (2-column layout) */}
+      <section className={styles.statsLayout}>
+        <div className={styles.mainStats}>
+          <motion.section variants={cv} initial="hidden" animate="visible" className={styles.statsGrid}>
+            <motion.div variants={iv} className="glass-card">
+              <div className={styles.statHeader}><TrendingUp size={17} color="var(--primary)" /><h3>Monthly Goal</h3></div>
+              {goal ? (<>
+                <div className={styles.progressContainer}><motion.div initial={{ width: 0 }} animate={{ width: `${progressPercent}%` }} transition={{ duration: 1.5, ease: 'easeOut' }} className={styles.progressBar} /></div>
+                <div className={styles.statFooter}><p className={styles.statDetail}><strong>{totalPagesRead}</strong> / {goal.target} pages</p><span className={styles.percentage}>{Math.round(progressPercent)}%</span></div>
+                <ReadingChart data={insights.chartData} />
+              </>) : (
+                <div className={styles.noGoal}><p>No goal set yet.</p><button className={styles.setGoalBtn} onClick={() => setShowGoalModal(true)}><Target size={13} /> Set Goal</button></div>
+              )}
+            </motion.div>
+
+            <motion.div variants={iv} className="glass-card">
+              <div className={styles.statHeader}><Flame size={17} color="#ef4444" /><h3>Daily Streak</h3></div>
+              <p className={styles.bigStat}>{insights.streak} <span className={styles.smallText}>{insights.streak === 1 ? 'day' : 'days'}</span></p>
+              <div className={styles.streakIndicator}>{[...Array(7)].map((_, i) => <div key={i} className={styles.streakDot} active-dot={i < insights.streak % 7 ? 'true' : 'false'} />)}</div>
+              {userStats.streakFreezes > 0 && <div className="freeze-active-label"><Shield size={11} /> {userStats.streakFreezes} active</div>}
+            </motion.div>
+
+            <motion.div variants={iv} className="glass-card">
+              <div className={styles.statHeader}><Trophy size={17} color="#f59e0b" /><h3>Achievements</h3></div>
+              <div className={styles.achievementGrid}>
+                {Object.entries(ACHIEVEMENTS).slice(0, 4).map(([key, a]) => (
+                  <div key={key} className={`${styles.achBadge} ${unlockedTypes.has(key) ? styles.achUnlocked : styles.achLocked}`} title={a.desc}>
+                    <span className={styles.achEmoji}>{a.emoji}</span>
+                  </div>
+                ))}
+              </div>
+              <button className={styles.viewMore} onClick={() => setActiveTab('achievements')}>View All <ArrowRight size={12} /></button>
+            </motion.div>
+          </motion.section>
+
+          {/* Reading Heatmap */}
+          <ReadingCalendar sessions={sessions} />
+
+          {/* Tabs Navigation */}
+          <div className={styles.mainTabs}>
+            {([
+              { key: 'reading', icon: <BookMarked size={13} />, label: `Reading (${activeBooks.length})` },
+              { key: 'completed', icon: <CheckCircle size={13} />, label: `Completed (${completedBooks.length})` },
+              { key: 'activity', icon: <Clock size={13} />, label: 'Activity' },
+              { key: 'achievements', icon: <Trophy size={13} />, label: 'Achievements' },
+            ] as const).map(t => (
+              <button key={t.key} className={`${styles.mainTab} ${activeTab === t.key ? styles.activeMainTab : ''}`} onClick={() => setActiveTab(t.key)}>
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.tabContent}>
+            <AnimatePresence mode="wait">
+              {activeTab === 'reading' && (
+                <motion.div key="reading" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.bookGrid}>
+                  {activeBooks.length > 0 ? activeBooks.map(book => (
+                    <motion.div key={book.id} layout whileHover={{ y: -5 }} className={`${styles.bookCard} glass-card`}>
+                      <div className={styles.bookMain}>
+                        {book.coverImage && (
+                          <div className={styles.bookCover}>
+                            <img src={book.coverImage} alt={book.title} />
+                          </div>
+                        )}
+                        <div className={styles.bookDetails}>
+                          <div className={styles.bookHeader}>
+                            <div className={styles.bookMeta}><h3>{book.title}</h3><p>by {book.author}</p></div>
+                            <div className={styles.bookActions}>
+                              <button className={styles.notesBtn} onClick={() => setNotesPanel({ bookId: book.id, bookTitle: book.title })} title="Notes"><StickyNote size={13} /></button>
+                              <button className={styles.deleteBtn} onClick={() => handleDeleteBook(book.id)}><Trash2 size={13} /></button>
+                            </div>
+                          </div>
+                          <div className={styles.progressLabel}><span>{book.currentPage} / {book.totalPages} pages</span><span>{Math.min(100, Math.round((book.currentPage / book.totalPages) * 100))}%</span></div>
+                          <div className={styles.miniProgress}><div className={styles.miniBar} style={{ width: `${Math.min(100, (book.currentPage / book.totalPages) * 100)}%` }} /></div>
+                          {getEstDaysToFinish(book) !== null && getEstDaysToFinish(book)! > 0 && (
+                            <div className={styles.estFinish}>
+                              <Clock size={11} /> <span>Est. {getEstDaysToFinish(book)} days left</span>
+                            </div>
+                          )}
+                          <div className={styles.logAction}>
+                            <div className={styles.inputWrapper}>
+                              <input type="number" placeholder="Pages" className="input-field" value={logPages[book.id] || ''} onChange={e => setLogPages(p => ({ ...p, [book.id]: e.target.value }))} />
+                              <button className={styles.miniAddBtn} onClick={() => handleLogSession(book.id)}><PlusCircle size={16} /></button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )) : <div className={styles.empty}><BookOpen size={42} opacity={0.12} /><p>No books in progress.</p></div>}
+                </motion.div>
+              )}
+
+              {activeTab === 'completed' && (
+                <motion.div key="completed" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.bookGrid}>
+                  {completedBooks.length > 0 ? completedBooks.map(book => (
+                    <motion.div key={book.id} layout className={`${styles.bookCard} ${styles.completedCard} glass-card`}>
+                      <div className={styles.bookHeader}>
+                        <div className={styles.bookMeta}><h3>{book.title}</h3><p>by {book.author}</p></div>
+                        <div className={styles.completedBadge}><CheckCircle size={18} /></div>
+                      </div>
+                      <p className={styles.completedInfo}>{book.totalPages} pages · ✅ Finished</p>
+                    </motion.div>
+                  )) : <div className={styles.empty}><Trophy size={42} opacity={0.12} /><p>No books completed yet.</p></div>}
+                </motion.div>
+              )}
+
+              {activeTab === 'activity' && (
+                <motion.div key="activity" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.activityList}>
+                  {sessions.length > 0 ? sessions.map((s, i) => (
+                    <div key={s.id} className={`${styles.activityItem} glass-card`}>
+                      <div className={styles.activityIcon}><BookOpen size={15} color="var(--primary)" /></div>
+                      <div className={styles.activityInfo}>
+                        <p className={styles.activityTitle}><strong>{s.pagesRead} pages</strong> in <em>{s.book?.title}</em></p>
+                        <p className={styles.activityMeta}>{new Date(s.date).toLocaleDateString()}</p>
+                      </div>
+                      <div className={styles.activityXp}>+10 XP</div>
+                    </div>
+                  )) : <div className={styles.empty}><Clock size={42} opacity={0.12} /><p>No sessions logged yet.</p></div>}
+                </motion.div>
+              )}
+
+              {activeTab === 'achievements' && (
+                <motion.div key="achievements" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.achievementsFull}>
+                  {Object.entries(ACHIEVEMENTS).map(([key, a]) => {
+                    const done = unlockedTypes.has(key)
+                    return (
+                      <div key={key} className={`${styles.achCard} glass-card ${done ? styles.achCardUnlocked : ''}`}>
+                        <div className={styles.achCardEmoji}>{a.emoji}</div>
+                        <div><div className={styles.achCardLabel}>{a.label}</div><div className={styles.achCardDesc}>{a.desc}</div></div>
+                        <div className={`${styles.achStatus} ${done ? styles.achStatusDone : ''}`}>{done ? <CheckCircle size={16} /> : <Shield size={16} />}</div>
+                      </div>
+                    )
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        <aside className={styles.sideStats}>
+          <ChallengePanel challenges={challenges} />
+
+          {/* Discovery Sidebar */}
+          <motion.section initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className={styles.discovery}>
+            <div className={styles.sectionHeader}><Search size={18} color="var(--primary)" /><h2>Discovery</h2></div>
+            <div className={styles.categoryTabs}>
+              {Object.keys(TOP_BOOKS).map(cat => (
+                <button key={cat} className={`${styles.tab} ${activeCategory === cat ? styles.activeTab : ''}`} onClick={() => setActiveCategory(cat as Category)}>
+                  {cat.charAt(0) + cat.slice(1).toLowerCase()}
+                </button>
+              ))}
+            </div>
+            <AnimatePresence mode="wait">
+              <motion.div key={activeCategory} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.discoveryList}>
+                {TOP_BOOKS[activeCategory].map((book, idx) => (
+                  <div key={idx} className={`${styles.discoveryCard} glass-card`}>
+                    <div className={styles.cardHeader}>
+                      <span className={styles.rank}>{idx + 1}</span>
+                      <div className={styles.discoveryMeta}><h3>{book.title}</h3><p className={styles.author}>{book.author}</p></div>
+                    </div>
+                    <button className={styles.addSuggested} onClick={() => handleAddBook(null, { title: book.title, author: book.author, totalPages: '300' })}>
+                      <Plus size={11} /> Add
+                    </button>
+                  </div>
+                ))}
+              </motion.div>
+            </AnimatePresence>
+          </motion.section>
+        </aside>
+      </section>
+
+      {/* MODALS */}
+      <AnimatePresence>
+        {showAddBook && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={styles.modalOverlay}>
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className={`${styles.modal} glass-card`}>
+              <div className={styles.modalHeader}><h2>New Book</h2><button onClick={() => { setShowAddBook(false); setSearchResults([]); setSearchQuery('') }} className={styles.closeBtn}><X size={17} /></button></div>
+
+              <div className={styles.searchSection}>
+                <div className={styles.searchBar}>
+                  <Search size={16} className={styles.searchIcon} />
+                  <input
+                    placeholder="Search Google Books..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearchBooks()}
+                  />
+                  <button onClick={handleSearchBooks} disabled={isSearching} className={styles.searchBtn}>
+                    {isSearching ? '...' : 'Search'}
+                  </button>
+                </div>
+
+                {searchResults.length > 0 ? (
+                  <div className={styles.searchResults}>
+                    {searchResults.map((book) => (
+                      <div key={book.id} className={styles.searchResultItem} onClick={() => selectBookFromResult(book)}>
+                        {book.coverImage && <img src={book.coverImage} alt={book.title} />}
+                        <div>
+                          <h6>{book.title}</h6>
+                          <span>{book.author}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : searchQuery && !isSearching && (
+                  <div className={styles.searchEmpty}>
+                    <Search size={22} opacity={0.2} />
+                    <p>No books found for "{searchQuery}"</p>
+                  </div>
+                )}
+              </div>
+
+              <form onSubmit={e => handleAddBook(e)}>
+                <div className={styles.formSplit}>
+                  {newBook.coverImage && (
+                    <div className={styles.formCoverPreview}>
+                      <img src={newBook.coverImage} alt="Cover" />
+                    </div>
+                  )}
+                  <div className={styles.formFields}>
+                    <div className={styles.formGroup}><label>Title</label><input className="input-field" value={newBook.title} onChange={e => setNewBook({ ...newBook, title: e.target.value })} required /></div>
+                    <div className={styles.formGroup}><label>Author</label><input className="input-field" value={newBook.author} onChange={e => setNewBook({ ...newBook, author: e.target.value })} required /></div>
+                    <div className={styles.formGroup}><label>Pages</label><input className="input-field" type="number" value={newBook.totalPages} onChange={e => setNewBook({ ...newBook, totalPages: e.target.value })} required /></div>
+                  </div>
+                </div>
+                <div className={styles.modalActions}><button type="button" className={styles.cancelBtn} onClick={() => setShowAddBook(false)}>Cancel</button><button type="submit" className="btn-primary">Add Book</button></div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showGoalModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={styles.modalOverlay}>
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className={`${styles.modal} glass-card`}>
+              <div className={styles.modalHeader}><h2>Monthly Goal</h2><button onClick={() => setShowGoalModal(false)} className={styles.closeBtn}><X size={17} /></button></div>
+              <form onSubmit={handleSetGoal}>
+                <div className={styles.formGroup}><label>Page Target</label><input className="input-field" type="number" value={goalTarget} onChange={e => setGoalTarget(e.target.value)} required /></div>
+                <div className={styles.modalActions}><button type="button" className={styles.cancelBtn} onClick={() => setShowGoalModal(false)}>Cancel</button><button type="submit" className="btn-primary">Save Goal</button></div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showSettings && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={styles.modalOverlay}>
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className={`${styles.modal} glass-card`}>
+              <div className={styles.modalHeader}><h2>⚙️ Settings</h2><button onClick={() => setShowSettings(false)} className={styles.closeBtn}><X size={17} /></button></div>
+
+              <div className={styles.settingsSection}>
+                <div className={styles.settingsSectionTitle}><Star size={14} /> Theme Gallery</div>
+                <div className={styles.themeGrid}>
+                  {[
+                    { id: 'DARK_DEFAULT', label: 'Dark Default', class: styles.previewDefault },
+                    { id: 'CYBERPUNK', label: 'Cyberpunk', class: styles.previewCyberpunk },
+                    { id: 'OLD_LIBRARY', label: 'Old Library', class: styles.previewLibrary },
+                    { id: 'ZEN', label: 'Zen Bamboo', class: styles.previewZen },
+                    { id: 'LIGHT', label: 'Fresh Light', class: styles.previewLight },
+                  ].map(t => (
+                    <div key={t.id} className={`${styles.themeOpt} ${userStats.activeTheme === t.id ? styles.active : ''}`} onClick={() => handleThemeChange(t.id)}>
+                      <div className={`${styles.themePreview} ${t.class}`} />
+                      <span className={styles.themeLabel}>{t.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.settingsSection}>
+                <div className={styles.settingsSectionTitle}><Bell size={14} /> Email Notifications</div>
+                <form onSubmit={handleSaveEmail}>
+                  <div className={styles.formGroup}><label>Email</label><input className="input-field" type="email" value={notifEmail} onChange={e => setNotifEmail(e.target.value)} /></div>
+                  <div className={styles.modalActions}><button type="button" className={styles.cancelBtn} onClick={() => setShowSettings(false)}>Close</button><button type="submit" className="btn-primary" disabled={savingEmail}>{savingEmail ? 'Saving...' : 'Save'}</button></div>
+                </form>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <ReadingTimer books={books} onSessionLogged={fetchData} />
+      <BookNotes bookId={notesPanel?.bookId || ''} bookTitle={notesPanel?.bookTitle || ''} isOpen={!!notesPanel} onClose={() => setNotesPanel(null)} />
+    </main>
+  )
 }

@@ -1,0 +1,106 @@
+.card {
+    margin-bottom: 2.5rem;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.title h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.stats {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.stats strong {
+    color: var(--text-main);
+}
+
+.scrollContainer {
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+}
+
+.scrollContainer::-webkit-scrollbar {
+    height: 4px;
+}
+
+.scrollContainer::-webkit-scrollbar-thumb {
+    background: var(--glass-border);
+    border-radius: 10px;
+}
+
+.months {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.monthLabel {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08rem;
+    font-weight: 600;
+}
+
+.grid {
+    display: flex;
+    gap: 4px;
+}
+
+.col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cell {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    transition: var(--transition);
+    cursor: default;
+    border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.cell:hover {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+    z-index: 2;
+}
+
+.legend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 1.25rem;
+    justify-content: flex-end;
+}
+
+.legendLabel {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin: 0 0.4rem;
+    font-weight: 500;
+}

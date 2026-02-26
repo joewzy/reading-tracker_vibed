@@ -1,0 +1,204 @@
+.timerCard {
+    text-align: center;
+}
+
+.timerTitle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+}
+
+.timerRingWrap {
+    position: relative;
+    width: 160px;
+    height: 160px;
+    margin: 0 auto;
+}
+
+.timerRingSvg {
+    width: 100%;
+    height: 100%;
+}
+
+.timerTime {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    font-weight: 800;
+    font-family: var(--font-display);
+    color: var(--text-main);
+}
+
+.timerPresets {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+.timerPreset {
+    padding: 0.4rem 0.9rem;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-muted);
+    transition: var(--transition);
+}
+
+.timerPreset:hover:not(:disabled) {
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.timerPreset.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.timerSelect {
+    width: 100%;
+    margin-top: 1.25rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 0.75rem;
+    padding: 0.65rem;
+    color: var(--text-main);
+    font-size: 0.85rem;
+}
+
+.timerInput {
+    width: 100%;
+    margin-top: 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 0.75rem;
+    padding: 0.65rem;
+    color: var(--text-main);
+    font-size: 0.85rem;
+}
+
+.timerControls {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.timerBtn {
+    flex: 1;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: var(--transition);
+}
+
+.timerBtnStart {
+    background: var(--primary);
+    color: #fff;
+}
+
+.timerBtnPause {
+    background: rgba(245, 158, 11, 0.08);
+    color: var(--warning);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.timerBtnStop {
+    background: rgba(16, 185, 129, 0.08);
+    color: var(--secondary);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.timerBtn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+.timerBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* FAB & Panel */
+.timerFab {
+    position: fixed;
+    bottom: 2rem;
+    left: 2rem;
+    width: 56px;
+    height: 56px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 900;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: var(--transition);
+}
+
+@media (max-width: 768px) {
+    .timerFab {
+        bottom: 1rem;
+        left: 1rem;
+        width: 50px;
+        height: 50px;
+    }
+}
+
+.timerFabTime {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: var(--secondary);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.2rem 0.4rem;
+    border-radius: 100px;
+    border: 2px solid var(--bg);
+}
+
+.timerPanel {
+    position: fixed;
+    bottom: 6rem;
+    left: 2rem;
+    width: 320px;
+    z-index: 900;
+    border: 1px solid var(--glass-border);
+}
+
+@media (max-width: 480px) {
+    .timerPanel {
+        left: 1rem;
+        right: 1rem;
+        width: auto;
+        bottom: 5rem;
+    }
+}
+
+.timerXpHint {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.7rem;
+    color: var(--warning);
+    margin-top: 1rem;
+    justify-content: center;
+    opacity: 0.8;
+}
