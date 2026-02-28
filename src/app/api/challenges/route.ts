@@ -9,10 +9,10 @@ export async function GET() {
 
     const now = new Date()
 
-    const userId = (session.user as any).id
+    const userId = (session.user as {id: string}).id
 
     // Get active challenges from library
-    const activeChallenges = await (prisma as any).challenge.findMany({
+    const activeChallenges = await prisma.challenge.findMany({
         where: {
             startDate: { lte: now },
             endDate: { gte: now },

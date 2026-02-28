@@ -7,8 +7,8 @@ export async function GET() {
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const userId = (session.user as any).id
-    const user = await (prisma as any).user.findUnique({
+    const userId = (session.user as { id: string }).id
+    const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { id: true, name: true, email: true, xp: true, level: true, notificationEmail: true, streakFreezes: true, activeTheme: true, achievements: { select: { type: true } } },
     })
@@ -20,9 +20,9 @@ export async function PUT(request: Request) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
-        const userId = (session.user as any).id
+        const userId = (session.user as { id: string }).id
         const { notificationEmail, name, activeTheme } = await request.json()
-        const user = await (prisma as any).user.update({
+        const user = await prisma.user.update({
             where: { id: userId },
             data: {
                 ...(notificationEmail !== undefined && { notificationEmail }),
@@ -32,7 +32,7 @@ export async function PUT(request: Request) {
             select: { id: true, name: true, xp: true, level: true, notificationEmail: true, streakFreezes: true, activeTheme: true, achievements: true },
         })
         return NextResponse.json(user)
-    } catch {
+    } catch (error) {
         return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
     }
 }

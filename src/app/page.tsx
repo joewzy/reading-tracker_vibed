@@ -5,9 +5,10 @@ import { useSession, signIn, signOut } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, BookOpen, TrendingUp, Search, Quote as QuoteIcon,
-  Flame, Award, PlusCircle, LogOut, Github, Mail, Lock,
+  Flame, PlusCircle, LogOut, Github, Mail, Lock,
   User as UserIcon, ArrowRight, Trash2, Target, CheckCircle,
-  Clock, BookMarked, X, Settings, Bell, Zap, Star, Shield, Trophy, StickyNote
+  Clock, BookMarked, X, Settings, Bell, Zap, Star, Shield, Trophy, StickyNote,
+  Brain, BarChart
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import styles from './page.module.css'
@@ -24,9 +25,9 @@ import AiBuddy from '@/components/AiBuddy'
 interface Book { id: string; title: string; author: string; totalPages: number; currentPage: number; status: string; coverImage?: string | null; description?: string | null }
 interface ActivitySession { id: string; pagesRead: number; duration: number | null; date: string; book: { title: string } }
 interface Goal { id: string; target: number; type: string }
-interface Insights { streak: number; chartData: any[]; averagePPH?: number }
+interface Insights { streak: number; chartData: { name: string; pages: number }[]; averagePPH?: number }
 interface UserStats { xp: number; level: number; notificationEmail: string | null; streakFreezes: number; activeTheme: string; achievements: { type: string }[] }
-interface Challenge { id: string; title: string; description: string; type: string; target: number; xpReward: number; users: any[] }
+interface Challenge { id: string; title: string; description: string; type: string; target: number; xpReward: number; users: { current: number; completed: boolean }[] }
 
 type Category = keyof typeof TOP_BOOKS
 
@@ -80,7 +81,7 @@ export default function Dashboard() {
 
   // Phase 3: Book Search State
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchResults, setSearchResults] = useState<{ id: string; title: string; author: string; totalPages: number | string; coverImage?: string | null; description?: string | null }[]>([])
   const [isSearching, setIsSearching] = useState(false)
 
   const handleSearchBooks = async () => {
@@ -99,25 +100,19 @@ export default function Dashboard() {
     }
   }
 
-  const selectBookFromResult = (book: any) => {
+  const selectBookFromResult = (book: { title: string; author: string; totalPages: number | string; coverImage?: string | null; description?: string | null }) => {
     setNewBook({
       title: book.title,
       author: book.author,
       totalPages: book.totalPages.toString(),
-      // @ts-ignore
-      coverImage: book.coverImage,
-      description: book.description
+      coverImage: book.coverImage || null,
+      description: book.description || ''
     })
     setSearchResults([])
     setSearchQuery('')
   }
 
   const quote = useMemo(() => MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)], [])
-
-  useEffect(() => {
-    if (status === 'authenticated') fetchData()
-    else if (status === 'unauthenticated') setLoading(false)
-  }, [status])
 
   const fetchData = useCallback(async () => {
     try {
@@ -135,6 +130,11 @@ export default function Dashboard() {
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }, [])
+
+  useEffect(() => {
+    if (status === 'authenticated') fetchData()
+    else if (status === 'unauthenticated') setLoading(false)
+  }, [status, fetchData])
 
   const showXpPop = (xp: number, ach?: string) => {
     setXpToast({ xp, achievement: ach })
@@ -155,11 +155,11 @@ export default function Dashboard() {
         const r = await signIn('credentials', { redirect: false, email: authForm.email, password: authForm.password })
         if (r?.error) throw new Error(r.error || 'Invalid credentials')
       }
-    } catch (err: any) { setAuthError(err.message) }
+    } catch (err: unknown) { setAuthError(err instanceof Error ? err.message : String(err)) }
     finally { setAuthLoading(false) }
   }
 
-  const handleAddBook = async (e: React.FormEvent | null, data?: any) => {
+  const handleAddBook = async (e: React.FormEvent | null, data?: { title?: string; author?: string; totalPages?: string; coverImage?: string | null; description?: string | null }) => {
     if (e) e.preventDefault()
     const payload = data || newBook
     const r = await fetch('/api/books', { method: 'POST', body: JSON.stringify(payload) })
@@ -208,45 +208,90 @@ export default function Dashboard() {
   if (status === 'unauthenticated') {
     return (
       <div className={styles.landingPage}>
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className={styles.landingContent}>
-          <div className={styles.landingBranding}>
-            <div className={styles.landingLogo}><BookOpen size={72} className={styles.logoGlow} /></div>
-            <h1 className={styles.landingTitle}>ReaderVerse</h1>
-            <p className={styles.landingSubtitle}>Your gamified reading sanctuary. Level up your mind.</p>
-            <div className={styles.landingFeatures}><span>🎮 XP & Levels</span><span>🏆 Achievements</span><span>📧 Daily Reminders</span></div>
-          </div>
-          <div className={`${styles.authCard} glass-card`}>
-            <div className={styles.authTabs}>
-              <button className={`${styles.authTab} ${authMode === 'login' ? styles.activeAuthTab : ''}`} onClick={() => setAuthMode('login')}>Login</button>
-              <button className={`${styles.authTab} ${authMode === 'signup' ? styles.activeAuthTab : ''}`} onClick={() => setAuthMode('signup')}>Sign Up</button>
+        <div className={styles.ambientGlow1} />
+        <div className={styles.ambientGlow2} />
+
+        <div className={styles.landingContainer}>
+          <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }} className={styles.landingHero}>
+            <div className={styles.landingLogo} style={{ justifyContent: 'flex-start' }}><BookOpen size={64} className={styles.logoGlow} /></div>
+            <h1>ReaderVerse</h1>
+            <p className={styles.landingSubtitle}>Your gamified reading sanctuary. Transform your reading habit with XP, achievements, and AI-powered insights.</p>
+
+            <div className={styles.featureGrid}>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className={styles.featureCard}>
+                <div className={styles.featureIcon}><Trophy size={20} /></div>
+                <div className={styles.featureText}><h3>Gamified Tracking</h3><p>Earn XP, level up, and unlock achievements for reading.</p></div>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className={styles.featureCard}>
+                <div className={styles.featureIcon}><Brain size={20} /></div>
+                <div className={styles.featureText}><h3>AI Buddy</h3><p>Chat with an AI about your books and get personalized insights.</p></div>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className={styles.featureCard}>
+                <div className={styles.featureIcon}><BarChart size={20} /></div>
+                <div className={styles.featureText}><h3>Deep Stats</h3><p>Visualize your reading speed, streak trends, and completion rates.</p></div>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className={styles.featureCard}>
+                <div className={styles.featureIcon}><Star size={20} /></div>
+                <div className={styles.featureText}><h3>Beautiful Themes</h3><p>Customize your reading sanctuary with immersive themes.</p></div>
+              </motion.div>
             </div>
-            <form onSubmit={handleAuth} className={styles.authForm}>
-              <AnimatePresence>
-                {authMode === 'signup' && (
-                  <motion.div key="name" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className={styles.inputGroup}>
-                    <UserIcon size={16} className={styles.inputIcon} />
-                    <input type="text" placeholder="Full Name" required value={authForm.name} onChange={e => setAuthForm({ ...authForm, name: e.target.value })} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <div className={styles.inputGroup}>
-                <Mail size={16} className={styles.inputIcon} />
-                <input type="email" placeholder="Email" required value={authForm.email} onChange={e => setAuthForm({ ...authForm, email: e.target.value })} />
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.2 }}>
+            <div className={`${styles.authCard} glass-card`}>
+              <div className={styles.authTabs}>
+                <button className={`${styles.authTab} ${authMode === 'login' ? styles.activeAuthTab : ''}`} onClick={() => setAuthMode('login')}>Login</button>
+                <button className={`${styles.authTab} ${authMode === 'signup' ? styles.activeAuthTab : ''}`} onClick={() => setAuthMode('signup')}>Sign Up</button>
               </div>
-              <div className={styles.inputGroup} style={{ marginTop: '0.85rem' }}>
-                <Lock size={16} className={styles.inputIcon} />
-                <input type="password" placeholder="Password" required value={authForm.password} onChange={e => setAuthForm({ ...authForm, password: e.target.value })} />
+              <form onSubmit={handleAuth} className={styles.authForm}>
+                <AnimatePresence>
+                  {authMode === 'signup' && (
+                    <motion.div key="name" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className={styles.inputGroup}>
+                      <UserIcon size={16} className={styles.inputIcon} />
+                      <input type="text" placeholder="Full Name" required value={authForm.name} onChange={e => setAuthForm({ ...authForm, name: e.target.value })} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <div className={styles.inputGroup}>
+                  <Mail size={16} className={styles.inputIcon} />
+                  <input type="email" placeholder="Email" required value={authForm.email} onChange={e => setAuthForm({ ...authForm, email: e.target.value })} />
+                </div>
+                <div className={styles.inputGroup} style={{ marginTop: '0.85rem' }}>
+                  <Lock size={16} className={styles.inputIcon} />
+                  <input type="password" placeholder="Password" required value={authForm.password} onChange={e => setAuthForm({ ...authForm, password: e.target.value })} />
+                </div>
+                {authError && <p className={styles.errorText}>{authError}</p>}
+                <button type="submit" className={styles.submitAuthBtn} disabled={authLoading}>
+                  {authLoading ? 'Processing...' : authMode === 'login' ? 'Enter Sanctuary' : 'Begin Journey'}
+                  {!authLoading && <ArrowRight size={16} />}
+                </button>
+              </form>
+              <div className={styles.divider}><span>or</span></div>
+              <div className={styles.authForm}>
+                <button
+                  className={styles.submitAuthBtn}
+                  style={{ marginBottom: '1rem', display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', color: '#000000' }}
+                  onClick={() => signIn('google')}
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                  </svg>
+                  Continue with Google
+                </button>
+                <button
+                  className={styles.githubBtn}
+                  style={{ width: '100%', padding: '0.85rem' }}
+                  onClick={() => signIn('github')}
+                >
+                  <Github size={18} /> Continue with GitHub
+                </button>
               </div>
-              {authError && <p className={styles.errorText}>{authError}</p>}
-              <button type="submit" className={styles.submitAuthBtn} disabled={authLoading}>
-                {authLoading ? 'Processing...' : authMode === 'login' ? 'Enter Sanctuary' : 'Begin Journey'}
-                {!authLoading && <ArrowRight size={16} />}
-              </button>
-            </form>
-            <div className={styles.divider}><span>or</span></div>
-            <button className={styles.githubBtn} onClick={() => signIn('github')}><Github size={16} /> Continue with GitHub</button>
-          </div>
-        </motion.div>
+            </div>
+          </motion.div>
+        </div>
       </div>
     )
   }
@@ -526,7 +571,7 @@ export default function Dashboard() {
                 ) : searchQuery && !isSearching && (
                   <div className={styles.searchEmpty}>
                     <Search size={22} opacity={0.2} />
-                    <p>No books found for "{searchQuery}"</p>
+                    <p>No books found for &quot;{searchQuery}&quot;</p>
                   </div>
                 )}
               </div>

@@ -10,8 +10,8 @@ export async function POST() {
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
-        const userId = (session.user as any).id
-        const user = await (prisma as any).user.findUnique({
+        const userId = (session.user as { id: string }).id
+        const user = await prisma.user.findUnique({
             where: { id: userId },
             select: { xp: true, streakFreezes: true }
         })
@@ -19,7 +19,7 @@ export async function POST() {
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
         if (user.xp < FREEZE_PRICE) return NextResponse.json({ error: 'Insufficient XP' }, { status: 400 })
 
-        const updatedUser = await (prisma as any).user.update({
+        const updatedUser = await prisma.user.update({
             where: { id: userId },
             data: {
                 xp: { decrement: FREEZE_PRICE },
@@ -29,7 +29,7 @@ export async function POST() {
         })
 
         return NextResponse.json({ success: true, xp: updatedUser.xp, streakFreezes: updatedUser.streakFreezes })
-    } catch (err) {
+    } catch (error) {
         return NextResponse.json({ error: 'Failed to complete purchase' }, { status: 500 })
     }
 }

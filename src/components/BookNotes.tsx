@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Plus, Trash2, StickyNote, BookOpen } from 'lucide-react'
 import styles from './BookNotes.module.css'
@@ -18,16 +18,17 @@ export default function BookNotes({ bookId, bookTitle, isOpen, onClose }: Props)
     const [newNote, setNewNote] = useState('')
     const [loading, setLoading] = useState(false)
 
-    useEffect(() => {
-        if (isOpen && bookId) fetchNotes()
-    }, [isOpen, bookId])
-
-    const fetchNotes = async () => {
+    const fetchNotes = useCallback(async () => {
         setLoading(true)
         const res = await fetch(`/api/notes?bookId=${bookId}`)
         if (res.ok) setNotes(await res.json())
         setLoading(false)
-    }
+    }, [bookId])
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (isOpen && bookId) fetchNotes()
+    }, [isOpen, bookId, fetchNotes])
 
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault()

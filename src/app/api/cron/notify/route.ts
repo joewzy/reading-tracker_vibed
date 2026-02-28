@@ -46,13 +46,15 @@ export async function POST(request: Request) {
                     await sendEveningEmail(user.notificationEmail, name, streak, pagesThisMonth)
                 }
                 results.push(`✓ ${user.notificationEmail}`)
-            } catch (err: any) {
-                results.push(`✗ ${user.notificationEmail}: ${err.message}`)
+            } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : String(err)
+                results.push(`✗ ${user.notificationEmail}: ${message}`)
             }
         }
 
         return NextResponse.json({ sent: results.length, results })
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 })
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err)
+        return NextResponse.json({ error: message }, { status: 500 })
     }
 }

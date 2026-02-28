@@ -1235,20 +1235,64 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    background: radial-gradient(circle at 50% 40%, #0f0a2e 0%, #020617 70%);
-    text-align: center;
-    padding: 2rem;
+    background: #020617;
+    position: relative;
+    overflow: hidden;
 }
 
-.landingContent {
+.ambientGlow1 {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
+    top: -200px;
+    left: -200px;
+    border-radius: 50%;
+    filter: blur(60px);
+    z-index: 0;
+}
+
+.ambientGlow2 {
+    position: absolute;
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+    bottom: -300px;
+    right: -200px;
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: 0;
+}
+
+.landingContainer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    max-width: 1200px;
     width: 100%;
-    max-width: 460px;
+    padding: 2rem;
+    z-index: 1;
+    align-items: center;
 }
 
-.landingContent h1 {
-    font-size: 3.2rem;
+@media (max-width: 968px) {
+    .landingContainer {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+        max-width: 500px;
+    }
+}
+
+.landingHero {
+    display: flex;
+    flex-direction: column;
+}
+
+.landingHero h1 {
+    font-size: 4rem;
     font-family: var(--font-display);
-    margin-bottom: .4rem;
+    margin-bottom: 1rem;
+    line-height: 1.1;
     background: linear-gradient(135deg, #fff 0%, var(--primary-glow) 100%);
     -webkit-background-clip: text;
     background-clip: text;
@@ -1257,68 +1301,67 @@
 
 .landingSubtitle {
     color: var(--text-muted);
-    font-size: .95rem;
-    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    margin-bottom: 2.5rem;
+    line-height: 1.5;
+    max-width: 90%;
 }
 
-.landingLogo {
-    margin-bottom: 2rem;
-    display: flex;
-    justify-content: center;
-}
-
-.logoGlow {
-    color: var(--primary-glow);
-    filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.4));
-}
-
-.landingTitle {
-    font-size: 4rem;
-    font-weight: 800;
-    font-family: var(--font-display);
-    margin-bottom: 0.5rem;
-    background: linear-gradient(to bottom, #fff, var(--text-muted));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -0.04em;
-}
-
-@media (max-width: 480px) {
-    .landingTitle {
-        font-size: 2.8rem;
-    }
-
-    .landingSubtitle {
-        font-size: 0.85rem;
-    }
-}
-
-.landingBranding {
-    margin-bottom: 3.5rem;
-}
-
-.landingFeatures {
-    display: flex;
-    justify-content: center;
+.featureGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 1.25rem;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
 }
 
-.landingFeatures span {
-    background: rgba(255, 255, 255, .03);
-    border: 1px solid var(--glass-border);
-    padding: .4rem 1rem;
-    border-radius: 100px;
-    font-size: .78rem;
+.featureCard {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 1.25rem;
+    border-radius: 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    transition: var(--transition);
+}
+
+.featureCard:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(139, 92, 246, 0.2);
+    transform: translateY(-2px);
+}
+
+.featureIcon {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--primary-glow);
+    padding: 0.6rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.featureText h3 {
+    font-size: 0.95rem;
+    color: var(--text-main);
+    margin-bottom: 0.2rem;
+}
+
+.featureText p {
+    font-size: 0.8rem;
     color: var(--text-muted);
+    line-height: 1.4;
 }
 
 .authCard {
-    padding: 1.75rem;
-    border: 1px solid var(--glass-border);
+    padding: 2.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(20px);
+    border-radius: 1.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     text-align: left;
+    width: 100%;
 }
 
 .authTabs {

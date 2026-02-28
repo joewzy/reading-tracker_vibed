@@ -30,7 +30,7 @@ export async function POST(request: Request) {
             data: { content: content.trim(), bookId, userId: session.user.id },
         })
         return NextResponse.json(note)
-    } catch {
+    } catch (error) {
         return NextResponse.json({ error: 'Failed to create note' }, { status: 500 })
     }
 }

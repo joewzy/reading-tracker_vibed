@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Trophy, CheckCircle2, Circle, Zap, Book, Target, Flame } from 'lucide-react'
+import { Trophy, CheckCircle2, Zap, Book, Target, Flame } from 'lucide-react'
 import styles from './ChallengePanel.module.css'
 
 interface Challenge {

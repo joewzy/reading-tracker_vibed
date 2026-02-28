@@ -29,7 +29,7 @@ export default function XPShop({ xp, streakFreezes, onPurchase }: Props) {
                 const data = await res.json()
                 setMessage(data.error || 'Purchase failed')
             }
-        } catch (err) {
+        } catch {
             setMessage('Something went wrong')
         } finally {
             setLoading(false)

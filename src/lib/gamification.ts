@@ -45,7 +45,7 @@ export async function awardXpAndCheckAchievements(
     })
     if (!user) return { newXp: 0, newLevel: 1, newAchievements: [] }
 
-    const existingTypes = new Set(user.achievements.map((a: any) => a.type))
+    const existingTypes = new Set(user.achievements.map((a: { type: string }) => a.type))
     const toUnlock: string[] = []
     let bonusXp = xpGained
 
@@ -96,7 +96,7 @@ export async function updateChallengeProgress(userId: string, context: { pagesRe
 
     const notifications: string[] = []
 
-    for (const uc of activeUserChallenges as any[]) {
+    for (const uc of activeUserChallenges) {
         let increment = 0
         if (uc.challenge.type === 'TOTAL_PAGES' && context.pagesRead) {
             increment = context.pagesRead
@@ -122,7 +122,7 @@ export async function updateChallengeProgress(userId: string, context: { pagesRe
             })
 
             if (isCompleted) {
-                await (prisma as any).user.update({
+                await prisma.user.update({
                     where: { id: userId },
                     data: { xp: { increment: uc.challenge.xpReward } }
                 })
@@ -136,7 +136,7 @@ export async function updateChallengeProgress(userId: string, context: { pagesRe
         where: { startDate: { lte: now }, endDate: { gte: now } }
     })
 
-    for (const challenge of allActive as any[]) {
+    for (const challenge of allActive) {
         const tracked = await prisma.userChallenge.findUnique({
             where: { userId_challengeId: { userId, challengeId: challenge.id } }
         })

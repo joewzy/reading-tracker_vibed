@@ -60,8 +60,8 @@ export default function ReadingCalendar({ sessions }: Props) {
         weeks.push(days.slice(i, i + 7))
     }
 
-    const totalPagesLast90 = days.reduce((a: number, d: any) => a + d.pages, 0)
-    const activeDays = days.filter((d: any) => d.pages > 0).length
+    const totalPagesLast90 = days.reduce((a: number, d: { date: string, pages: number, dayOfWeek: number }) => a + d.pages, 0)
+    const activeDays = days.filter((d: { pages: number }) => d.pages > 0).length
 
     return (
         <div className={`${styles.card} glass-card`}>

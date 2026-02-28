@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageSquare, Send, X, Bot, Sparkles, Loader2 } from 'lucide-react'
+import { Send, X, Bot, Sparkles, Loader2 } from 'lucide-react'
 import styles from './AiBuddy.module.css'
 
 interface AiBuddyProps {
@@ -48,8 +48,9 @@ export default function AiBuddy({ bookId, bookTitle, bookAuthor }: AiBuddyProps)
             if (data.error) throw new Error(data.error)
 
             setChat(prev => [...prev, { role: 'ai', content: data.text }])
-        } catch (err: any) {
-            setChat(prev => [...prev, { role: 'ai', content: `Apologies, but ${err.message}. Perhaps we should try again?` }])
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : String(err)
+            setChat(prev => [...prev, { role: 'ai', content: `Apologies, but ${errorMsg}. Perhaps we should try again?` }])
         } finally {
             setIsLoading(false)
         }

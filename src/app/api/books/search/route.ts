@@ -19,8 +19,19 @@ export async function GET(request: Request) {
 
         const data = await response.json()
 
+        interface GoogleBookItem {
+            id: string;
+            volumeInfo: {
+                title: string;
+                authors?: string[];
+                description?: string;
+                pageCount?: number;
+                imageLinks?: { thumbnail?: string };
+            }
+        }
+
         // Transform the data to a simpler format for our UI
-        const results = data.items?.map((item: any) => ({
+        const results = data.items?.map((item: GoogleBookItem) => ({
             id: item.id,
             title: item.volumeInfo.title,
             author: item.volumeInfo.authors?.join(', ') || 'Unknown Author',

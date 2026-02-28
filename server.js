@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Custom server with node-cron for scheduled email notifications
 // Run with: node server.js
 

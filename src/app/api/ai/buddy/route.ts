@@ -22,13 +22,13 @@ export async function POST(request: Request) {
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
         // Fetch user's notes for this book to provide context
-        const userNotes = await (prisma as any).note.findMany({
+        const userNotes = await prisma.note.findMany({
             where: { bookId, user: { email: session.user.email } },
             orderBy: { createdAt: 'desc' },
             take: 10
         })
 
-        const notesContext = userNotes.map((n: any) => n.content).join('\n---\n')
+        const notesContext = userNotes.map((n: { content: string }) => n.content).join('\n---\n')
 
         const prompt = `You are the "Reading Buddy" for ReaderVerse, a gamified reading sanctuary.
 User is reading: ${context.bookTitle} by ${context.bookAuthor}.

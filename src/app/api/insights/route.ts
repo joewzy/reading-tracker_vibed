@@ -9,7 +9,7 @@ export async function GET() {
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
-        const userId = session.user.id
+        const userId = (session.user as { id: string }).id
         const user = await prisma.user.findUnique({
             where: { id: userId },
             select: { streakFreezes: true }
@@ -18,7 +18,7 @@ export async function GET() {
         const sessions = await prisma.readingSession.findMany({
             where: { userId: userId },
             orderBy: { date: 'asc' },
-            include: { book: true } as any
+            include: { book: true }
         })
 
         // Calculate Streak
@@ -28,8 +28,8 @@ export async function GET() {
         const today = startOfDay(new Date())
 
         // Get unique days with reading activity
-        const readingDays = Array.from(new Set(sessions.map((s: any) => startOfDay(new Date(s.date)).getTime())))
-            .sort((a: any, b: any) => (b as number) - (a as number)) // Recent first
+        const readingDays = Array.from(new Set(sessions.map((s: { date: string | Date, duration?: number | null, pagesRead?: number }) => startOfDay(new Date(s.date)).getTime())))
+            .sort((a: number, b: number) => b - a) // Recent first
 
         if (readingDays.length > 0) {
             const mostRecentReadingDay = new Date(readingDays[0] as number)
@@ -78,8 +78,8 @@ export async function GET() {
         for (let i = 6; i >= 0; i--) {
             const day = subDays(today, i)
             const dayStr = format(day, 'MMM dd')
-            const daySessions = sessions.filter((s: any) => isSameDay(new Date(s.date), day))
-            const pagesRead = daySessions.reduce((acc: number, s: any) => acc + s.pagesRead, 0)
+            const daySessions = sessions.filter((s) => isSameDay(new Date(s.date), day))
+            const pagesRead = daySessions.reduce((acc, s) => acc + s.pagesRead, 0)
 
             chartData.push({
                 name: dayStr,
@@ -88,11 +88,11 @@ export async function GET() {
         }
 
         // Calculate Reading Speed (PPH - Pages Per Hour)
-        const sessionsWithDuration = sessions.filter((s: any) => s.duration && s.duration > 0)
+        const sessionsWithDuration = sessions.filter((s) => s.duration && s.duration > 0)
         let averagePPH = 0
         if (sessionsWithDuration.length > 0) {
-            const totalPages = sessionsWithDuration.reduce((acc: number, s: any) => acc + s.pagesRead, 0)
-            const totalMinutes = sessionsWithDuration.reduce((acc: number, s: any) => acc + s.duration, 0)
+            const totalPages = sessionsWithDuration.reduce((acc, s) => acc + s.pagesRead, 0)
+            const totalMinutes = sessionsWithDuration.reduce((acc, s) => acc + (s.duration || 0), 0)
             averagePPH = Math.round((totalPages / (totalMinutes / 60)))
         }
 
