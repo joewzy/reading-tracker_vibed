@@ -107,6 +107,12 @@ button {
   }
 }
 
+@media (max-width: 480px) {
+  .container {
+    padding: 0.75rem;
+  }
+}
+
 h1,
 h2,
 h3 {

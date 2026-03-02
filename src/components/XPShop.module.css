@@ -40,6 +40,12 @@
     z-index: 1200;
 }
 
+@media (max-width: 480px) {
+    .modal {
+        padding: 1.5rem 1.25rem;
+    }
+}
+
 .header {
     display: flex;
     justify-content: space-between;

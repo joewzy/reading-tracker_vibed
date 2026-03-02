@@ -32,6 +32,13 @@
     overflow: hidden;
 }
 
+@media (max-width: 480px) {
+    .card {
+        gap: 1rem;
+        padding: 1.1rem;
+    }
+}
+
 .card:hover {
     border-color: rgba(139, 92, 246, 0.4);
     background: rgba(255, 255, 255, 0.04);
