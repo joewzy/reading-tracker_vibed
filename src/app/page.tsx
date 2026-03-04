@@ -22,7 +22,7 @@ import XPShop from '@/components/XPShop'
 import ChallengePanel from '@/components/ChallengePanel'
 import AiBuddy from '@/components/AiBuddy'
 
-interface Book { id: string; title: string; author: string; totalPages: number; currentPage: number; status: string; coverImage?: string | null; description?: string | null }
+interface Book { id: string; title: string; author: string; totalPages: number; currentPage: number; status: string; coverImage?: string | null; description?: string | null; rating?: number | null; review?: string | null }
 interface ActivitySession { id: string; pagesRead: number; duration: number | null; date: string; book: { title: string } }
 interface Goal { id: string; target: number; type: string }
 interface Insights { streak: number; chartData: { name: string; pages: number }[]; averagePPH?: number }
@@ -78,6 +78,10 @@ export default function Dashboard() {
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [challenges, setChallenges] = useState<Challenge[]>([])
+  const [ratingModal, setRatingModal] = useState<{ bookId: string; bookTitle: string } | null>(null)
+  const [pendingRating, setPendingRating] = useState(0)
+  const [pendingReview, setPendingReview] = useState('')
+  const [onboarding, setOnboarding] = useState<{ step: number } | null>(null)
 
   // Phase 3: Book Search State
   const [searchQuery, setSearchQuery] = useState('')
@@ -132,8 +136,12 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
-    if (status === 'authenticated') fetchData()
-    else if (status === 'unauthenticated') setLoading(false)
+    if (status === 'authenticated') {
+      fetchData()
+      // Show onboarding for brand-new users (only once)
+      const seen = localStorage.getItem('rv_onboarded')
+      if (!seen) setOnboarding({ step: 1 })
+    } else if (status === 'unauthenticated') setLoading(false)
   }, [status, fetchData])
 
   const showXpPop = (xp: number, ach?: string) => {
@@ -192,6 +200,23 @@ export default function Dashboard() {
     const body = { notificationEmail: notifEmail, activeTheme: userStats.activeTheme }
     await fetch('/api/user/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     setSavingEmail(false); fetchData(); setShowSettings(false)
+  }
+
+  const handleSaveRating = async () => {
+    if (!ratingModal || pendingRating === 0) return
+    await fetch(`/api/books/${ratingModal.bookId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating: pendingRating, review: pendingReview || null }),
+    })
+    setRatingModal(null)
+    fetchData()
+  }
+
+  const dismissOnboarding = (goToStep?: number) => {
+    if (goToStep) { setOnboarding({ step: goToStep }); return }
+    localStorage.setItem('rv_onboarded', '1')
+    setOnboarding(null)
   }
 
   const handleThemeChange = async (theme: string) => {
@@ -465,6 +490,15 @@ export default function Dashboard() {
                         <div className={styles.completedBadge}><CheckCircle size={18} /></div>
                       </div>
                       <p className={styles.completedInfo}>{book.totalPages} pages · ✅ Finished</p>
+                      <div className={styles.starRow}>
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <Star key={s} size={16} className={s <= (book.rating ?? 0) ? styles.starFilled : styles.starEmpty} />
+                        ))}
+                        {!book.rating && (
+                          <button className={styles.rateBtn} onClick={() => { setRatingModal({ bookId: book.id, bookTitle: book.title }); setPendingRating(0); setPendingReview('') }}>Rate it</button>
+                        )}
+                      </div>
+                      {book.review && <p className={styles.reviewText}>&ldquo;{book.review}&rdquo;</p>}
                     </motion.div>
                   )) : <div className={styles.empty}><Trophy size={42} opacity={0.12} /><p>No books completed yet.</p></div>}
                 </motion.div>
@@ -644,6 +678,92 @@ export default function Dashboard() {
 
       <ReadingTimer books={books} onSessionLogged={fetchData} />
       <BookNotes bookId={notesPanel?.bookId || ''} bookTitle={notesPanel?.bookTitle || ''} isOpen={!!notesPanel} onClose={() => setNotesPanel(null)} />
+
+      {/* ===== RATING MODAL ===== */}
+      <AnimatePresence>
+        {ratingModal && (
+          <motion.div className={styles.modalOverlay} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setRatingModal(null)}>
+            <motion.div className={`${styles.modal} glass-card`} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHeader}>
+                <h3>Rate &ldquo;{ratingModal.bookTitle}&rdquo;</h3>
+                <button onClick={() => setRatingModal(null)} className={styles.closeBtn}><X size={18} /></button>
+              </div>
+              <div className={styles.starPickerRow}>
+                {[1, 2, 3, 4, 5].map(s => (
+                  <button key={s} onClick={() => setPendingRating(s)} className={s <= pendingRating ? styles.starFilled : styles.starEmpty}>
+                    <Star size={32} fill={s <= pendingRating ? 'currentColor' : 'none'} />
+                  </button>
+                ))}
+              </div>
+              <textarea
+                className={styles.reviewInput}
+                placeholder="Write a short review (optional)..."
+                value={pendingReview}
+                onChange={e => setPendingReview(e.target.value)}
+                rows={3}
+              />
+              <div className={styles.modalActions}>
+                <button className={styles.cancelBtn} onClick={() => setRatingModal(null)}>Cancel</button>
+                <button className="btn-primary" onClick={handleSaveRating} disabled={pendingRating === 0}>Save Rating</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ===== ONBOARDING WIZARD ===== */}
+      <AnimatePresence>
+        {onboarding && (
+          <motion.div className={styles.modalOverlay} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div className={`${styles.modal} ${styles.onboardingModal} glass-card`} initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }}>
+              {/* Progress dots */}
+              <div className={styles.onboardingDots}>
+                {[1, 2, 3].map(i => <div key={i} className={`${styles.onboardingDot} ${onboarding.step >= i ? styles.onboardingDotActive : ''}`} />)}
+              </div>
+
+              {onboarding.step === 1 && (
+                <div className={styles.onboardingStep}>
+                  <div className={styles.onboardingEmoji}>📚</div>
+                  <h2>Welcome to ReaderVerse!</h2>
+                  <p>Your personal reading sanctuary. Track pages, earn XP, build streaks — and level up as a reader.</p>
+                  <ul className={styles.onboardingFeatures}>
+                    <li><Zap size={14} color="var(--warning)" /> Earn XP for every page you read</li>
+                    <li><Flame size={14} color="#f97316" /> Build daily reading streaks</li>
+                    <li><Trophy size={14} color="var(--primary-glow)" /> Unlock achievements &amp; level up</li>
+                    <li><Brain size={14} color="var(--secondary)" /> Chat with your AI reading buddy</li>
+                  </ul>
+                  <button className="btn-primary" onClick={() => dismissOnboarding(2)}>Get Started <ArrowRight size={15} /></button>
+                </div>
+              )}
+
+              {onboarding.step === 2 && (
+                <div className={styles.onboardingStep}>
+                  <div className={styles.onboardingEmoji}>➕</div>
+                  <h2>Add Your First Book</h2>
+                  <p>Start building your library. You can search by title or add any book manually.</p>
+                  <div className={styles.modalActions} style={{ flexDirection: 'column', gap: '0.75rem' }}>
+                    <button className="btn-primary" onClick={() => { dismissOnboarding(); setShowAddBook(true) }}>Add a Book Now <ArrowRight size={15} /></button>
+                    <button className={styles.cancelBtn} onClick={() => dismissOnboarding(3)}>Skip for now</button>
+                  </div>
+                </div>
+              )}
+
+              {onboarding.step === 3 && (
+                <div className={styles.onboardingStep}>
+                  <div className={styles.onboardingEmoji}>🎯</div>
+                  <h2>Set a Monthly Goal</h2>
+                  <p>Goals keep you consistent. Set a monthly page target and track your progress.</p>
+                  <div className={styles.modalActions} style={{ flexDirection: 'column', gap: '0.75rem' }}>
+                    <button className="btn-primary" onClick={() => { dismissOnboarding(); setShowGoalModal(true) }}>Set My Goal <ArrowRight size={15} /></button>
+                    <button className={styles.cancelBtn} onClick={() => dismissOnboarding()}>Maybe Later</button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   )
 }
+

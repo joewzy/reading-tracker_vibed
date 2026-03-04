@@ -114,6 +114,8 @@ model Book {
   totalPages  Int
   currentPage Int              @default(0)
   status      String           @default("WANT_TO_READ") // READING, COMPLETED, WANT_TO_READ
+  rating      Int?             // 1-5 stars, only set when COMPLETED
+  review      String?          // optional short review
   sessions    ReadingSession[]
   notes       Note[]
   createdAt   DateTime         @default(now())
@@ -121,6 +123,7 @@ model Book {
   userId      String
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
 
 model Note {
   id        String   @id @default(cuid())
