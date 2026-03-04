@@ -1,15 +1,17 @@
 import nodemailer from 'nodemailer'
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
 })
 
+const APP_URL = process.env.NEXTAUTH_URL || 'https://readerverse.vercel.app'
+
 function getMorningHtml(name: string, streak: number, booksCount: number) {
-    return `
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -44,9 +46,9 @@ function getMorningHtml(name: string, streak: number, booksCount: number) {
     </div>
     <p style="text-align:center"><em>"A reader lives a thousand lives before he dies."</em> — George R.R. Martin</p>
   </div>
-  <a href="http://localhost:3000" class="cta">Open My Reading Sanctuary →</a>
+  <a href="${APP_URL}" class="cta">Open My Reading Sanctuary →</a>
   <div class="footer">ReaderVerse · You're receiving this because you enabled reading reminders.<br/>
-    <a href="http://localhost:3000" style="color:#7c3aed;">Manage notification settings</a>
+    <a href="${APP_URL}" style="color:#7c3aed;">Manage notification settings</a>
   </div>
 </div>
 </body>
@@ -54,7 +56,7 @@ function getMorningHtml(name: string, streak: number, booksCount: number) {
 }
 
 function getEveningHtml(name: string, streak: number, pagesThisMonth: number) {
-    return `
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -89,9 +91,9 @@ function getEveningHtml(name: string, streak: number, pagesThisMonth: number) {
     </div>
     ${streak === 0 ? `<p style="text-align:center;color:#f97316">⚠️ Don't break your streak! Log at least a few pages tonight.</p>` : `<p style="text-align:center;color:#34d399">✅ You're on a roll! Keep it going.</p>`}
   </div>
-  <a href="http://localhost:3000" class="cta">Log Tonight's Reading →</a>
+  <a href="${APP_URL}" class="cta">Log Tonight's Reading →</a>
   <div class="footer">ReaderVerse · You're receiving this because you enabled reading reminders.<br/>
-    <a href="http://localhost:3000" style="color:#7c3aed;">Manage notification settings</a>
+    <a href="${APP_URL}" style="color:#7c3aed;">Manage notification settings</a>
   </div>
 </div>
 </body>
@@ -99,19 +101,19 @@ function getEveningHtml(name: string, streak: number, pagesThisMonth: number) {
 }
 
 export async function sendMorningEmail(to: string, name: string, streak: number, booksCount: number) {
-    await transporter.sendMail({
-        from: `"ReaderVerse 📚" <${process.env.EMAIL_USER}>`,
-        to,
-        subject: `☀️ Good Morning, ${name}! Your reading day starts now.`,
-        html: getMorningHtml(name, streak, booksCount),
-    })
+  await transporter.sendMail({
+    from: `"ReaderVerse 📚" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `☀️ Good Morning, ${name}! Your reading day starts now.`,
+    html: getMorningHtml(name, streak, booksCount),
+  })
 }
 
 export async function sendEveningEmail(to: string, name: string, streak: number, pagesThisMonth: number) {
-    await transporter.sendMail({
-        from: `"ReaderVerse 📚" <${process.env.EMAIL_USER}>`,
-        to,
-        subject: `🌆 Evening Check-in — Did you read today, ${name}?`,
-        html: getEveningHtml(name, streak, pagesThisMonth),
-    })
+  await transporter.sendMail({
+    from: `"ReaderVerse 📚" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `🌆 Evening Check-in — Did you read today, ${name}?`,
+    html: getEveningHtml(name, streak, pagesThisMonth),
+  })
 }
