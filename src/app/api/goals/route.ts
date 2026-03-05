@@ -22,8 +22,9 @@ export async function GET(request: Request) {
             },
         })
         return NextResponse.json(goal)
-    } catch (error) {
-        return NextResponse.json({ error: 'Failed to fetch goal' }, { status: 500 })
+    } catch (error: any) {
+        console.error('Goal fetch error:', error.message)
+        return NextResponse.json({ error: 'Failed to fetch goal', details: error.message }, { status: 500 })
     }
 }
 
@@ -61,7 +62,9 @@ export async function POST(request: Request) {
         })
 
         return NextResponse.json(goal)
-    } catch (error) {
-        return NextResponse.json({ error: 'Failed to set goal' }, { status: 500 })
+    } catch (error: any) {
+        console.error('Goal error:', error.message)
+        return NextResponse.json({ error: 'Failed to set goal', details: error.message }, { status: 500 })
     }
 }
+

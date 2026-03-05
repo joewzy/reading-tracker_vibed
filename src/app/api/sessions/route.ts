@@ -104,8 +104,9 @@ export async function POST(request: Request) {
             newAchievements,
             challengeNotifications,
         })
-    } catch (err) {
-        console.error(err)
-        return NextResponse.json({ error: 'Failed to log session' }, { status: 500 })
+    } catch (err: any) {
+        console.error('Session logging error:', err.message)
+        return NextResponse.json({ error: 'Failed to log session', details: err.message }, { status: 500 })
     }
 }
+

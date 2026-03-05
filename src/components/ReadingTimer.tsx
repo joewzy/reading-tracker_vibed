@@ -59,8 +59,10 @@ export default function ReadingTimer({ books, onSessionLogged }: Props) {
 
         const r = await fetch('/api/sessions', {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ bookId: selectedBook, pagesRead, duration: mins }),
         })
+
 
         if (r.ok) {
             onSessionLogged()

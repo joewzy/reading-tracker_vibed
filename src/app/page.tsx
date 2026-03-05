@@ -120,20 +120,35 @@ export default function Dashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [bR, gR, iR, sR, uR, cR] = await Promise.all([
-        fetch('/api/books'), fetch('/api/goals'), fetch('/api/insights'),
-        fetch('/api/sessions'), fetch('/api/user/settings'), fetch('/api/challenges'),
-      ])
-      const [bD, gD, iD, sD, uD, cD] = await Promise.all([bR.json(), gR.json(), iR.json(), sR.json(), uR.json(), cR.json()])
-      if (Array.isArray(bD)) setBooks(bD)
+      const endpoints = [
+        '/api/books', '/api/goals', '/api/insights',
+        '/api/sessions', '/api/user/settings', '/api/challenges'
+      ]
+      const responses = await Promise.all(endpoints.map(e => fetch(e)))
+
+      const [bD, gD, iD, sD, uD, cD] = await Promise.all(
+        responses.map(async r => {
+          if (!r.ok) return null
+          try { return await r.json() } catch { return null }
+        })
+      )
+
+      if (bD && Array.isArray(bD)) setBooks(bD)
       if (gD && !gD.error) setGoal(gD)
       if (iD && !iD.error) setInsights(iD)
-      if (Array.isArray(sD)) setSessions(sD)
-      if (uD && !uD.error) { setUserStats(uD); setNotifEmail(uD.notificationEmail || '') }
-      if (Array.isArray(cD)) setChallenges(cD)
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
+      if (sD && Array.isArray(sD)) setSessions(sD)
+      if (uD && !uD.error) {
+        setUserStats(uD)
+        setNotifEmail(uD.notificationEmail || '')
+      }
+      if (cD && Array.isArray(cD)) setChallenges(cD)
+    } catch (e) {
+      console.error('Fetch error:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -170,9 +185,27 @@ export default function Dashboard() {
   const handleAddBook = async (e: React.FormEvent | null, data?: { title?: string; author?: string; totalPages?: string; coverImage?: string | null; description?: string | null }) => {
     if (e) e.preventDefault()
     const payload = data || newBook
-    const r = await fetch('/api/books', { method: 'POST', body: JSON.stringify(payload) })
-    if (r.ok) { setNewBook({ title: '', author: '', totalPages: '', coverImage: null, description: '' }); setShowAddBook(false); fetchData(); boom() }
+    try {
+      const r = await fetch('/api/books', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (r.ok) {
+        setNewBook({ title: '', author: '', totalPages: '', coverImage: null, description: '' });
+        setShowAddBook(false);
+        fetchData();
+        boom()
+      } else {
+        const err = await r.json()
+        console.error('Failed to add book:', err)
+        alert('Failed to add book: ' + (err.details || err.error || 'Unknown error'))
+      }
+    } catch (err) {
+      console.error('Error adding book:', err)
+    }
   }
+
 
   const handleDeleteBook = async (id: string) => {
     if (!confirm('Remove this book?')) return
@@ -181,19 +214,40 @@ export default function Dashboard() {
 
   const handleLogSession = async (bookId: string) => {
     const pages = logPages[bookId]; if (!pages || parseInt(pages) <= 0) return
-    const r = await fetch('/api/sessions', { method: 'POST', body: JSON.stringify({ bookId, pagesRead: pages }) })
-    if (r.ok) {
-      const d = await r.json(); setLogPages(p => ({ ...p, [bookId]: '' })); fetchData()
-      boom(); showXpPop(d.xpGained ?? 10, d.newAchievements?.[0])
-      if (d.autoCompleted) setTimeout(() => alert('🎉 You finished the book!'), 600)
+    try {
+      const r = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookId, pagesRead: pages })
+      })
+      if (r.ok) {
+        const d = await r.json(); setLogPages(p => ({ ...p, [bookId]: '' })); fetchData()
+        boom(); showXpPop(d.xpGained ?? 10, d.newAchievements?.[0])
+        if (d.autoCompleted) setTimeout(() => alert('🎉 You finished the book!'), 600)
+      } else {
+        const err = await r.json()
+        alert('Failed to log session: ' + (err.error || 'Unknown error'))
+      }
+    } catch (err) {
+      console.error('Error logging session:', err)
     }
   }
 
+
   const handleSetGoal = async (e: React.FormEvent) => {
     e.preventDefault(); const now = new Date()
-    const r = await fetch('/api/goals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: goalTarget, type: 'PAGES', month: now.getMonth() + 1, year: now.getFullYear() }) })
-    if (r.ok) { setShowGoalModal(false); setGoalTarget(''); fetchData() }
+    try {
+      const r = await fetch('/api/goals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: goalTarget, type: 'PAGES', month: now.getMonth() + 1, year: now.getFullYear() }) })
+      if (r.ok) { setShowGoalModal(false); setGoalTarget(''); fetchData() }
+      else {
+        const err = await r.json()
+        alert('Failed to set goal: ' + (err.details || err.error || 'Unknown error'))
+      }
+    } catch (err) {
+      console.error('Error setting goal:', err)
+    }
   }
+
 
   const handleSaveEmail = async (e: React.FormEvent) => {
     e.preventDefault(); setSavingEmail(true)
