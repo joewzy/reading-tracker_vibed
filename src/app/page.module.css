@@ -113,7 +113,8 @@
 @media (max-width: 768px) {
     .headerActions {
         width: 100%;
-        justify-content: space-between;
+        justify-content: flex-start;
+        flex-wrap: wrap;
         order: 2;
     }
 }
@@ -789,9 +790,17 @@
 
 .categoryTabs {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     gap: .35rem;
     margin-bottom: 1.5rem;
+    padding-bottom: .25rem;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.categoryTabs::-webkit-scrollbar {
+    display: none;
 }
 
 .tab {
@@ -836,10 +845,18 @@
     min-width: 20px;
 }
 
+.discoveryMeta {
+    min-width: 0;
+    flex: 1;
+}
+
 .discoveryMeta h3 {
     font-size: .85rem;
     font-family: var(--font-body);
     margin-bottom: .12rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .author {
@@ -1363,7 +1380,7 @@
     gap: 1.25rem;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
     .featureGrid {
         grid-template-columns: 1fr;
         gap: 0.85rem;
