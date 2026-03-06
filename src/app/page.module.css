@@ -1690,6 +1690,44 @@
     color: var(--primary-glow);
 }
 
+/* ===== MOBILE CARD UNIFICATION (Match Quote Card) ===== */
+@media (max-width: 768px) {
+
+    .statsGrid>div,
+    .discovery {
+        padding: 2.5rem 1.25rem !important;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .statHeader,
+    .sectionHeader {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .streakIndicator {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .statFooter {
+        justify-content: center;
+        width: 100%;
+        gap: 1rem;
+    }
+
+    .progressContainer {
+        width: 100%;
+    }
+
+    .discoveryList {
+        width: 100%;
+    }
+}
+
 /* ===== STAR RATINGS ===== */
 .starRow {
     display: flex;
