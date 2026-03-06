@@ -447,7 +447,7 @@ export default function Dashboard() {
       <section className={styles.statsLayout}>
         <div className={styles.mainStats}>
           <motion.section variants={cv} initial="hidden" animate="visible" className={styles.statsGrid}>
-            <motion.div variants={iv} className="glass-card">
+            <motion.div variants={iv} className={`glass-card ${styles.mobileCenterCard}`}>
               <div className={styles.statHeader}><TrendingUp size={17} color="var(--primary)" /><h3>Monthly Goal</h3></div>
               {goal ? (<>
                 <div className={styles.progressContainer}><motion.div initial={{ width: 0 }} animate={{ width: `${progressPercent}%` }} transition={{ duration: 1.5, ease: 'easeOut' }} className={styles.progressBar} /></div>
@@ -458,14 +458,14 @@ export default function Dashboard() {
               )}
             </motion.div>
 
-            <motion.div variants={iv} className="glass-card">
+            <motion.div variants={iv} className={`glass-card ${styles.mobileCenterCard}`}>
               <div className={styles.statHeader}><Flame size={17} color="#ef4444" /><h3>Daily Streak</h3></div>
               <p className={styles.bigStat}>{insights.streak} <span className={styles.smallText}>{insights.streak === 1 ? 'day' : 'days'}</span></p>
               <div className={styles.streakIndicator}>{[...Array(7)].map((_, i) => <div key={i} className={styles.streakDot} active-dot={i < insights.streak % 7 ? 'true' : 'false'} />)}</div>
               {userStats.streakFreezes > 0 && <div className="freeze-active-label"><Shield size={11} /> {userStats.streakFreezes} active</div>}
             </motion.div>
 
-            <motion.div variants={iv} className="glass-card">
+            <motion.div variants={iv} className={`glass-card ${styles.mobileCenterCard}`}>
               <div className={styles.statHeader}><Trophy size={17} color="#f59e0b" /><h3>Achievements</h3></div>
               <div className={styles.achievementGrid}>
                 {Object.entries(ACHIEVEMENTS).slice(0, 4).map(([key, a]) => (
@@ -591,12 +591,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <aside className={styles.sideStats}>
+        <aside className={`${styles.sideStats} ${styles.mobileCenterCard}`}>
           <ChallengePanel challenges={challenges} />
 
           {/* Discovery Sidebar */}
-          <motion.section initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className={styles.discovery}>
-            <div className={styles.sectionHeader}><Search size={18} color="var(--primary)" /><h2>Discovery</h2></div>
+          <motion.section variants={cv} initial="hidden" animate="visible" className={`${styles.discovery} ${styles.mobileCenterCard}`}>
+            <div className={styles.sectionHeader}><Sparkles size={17} color="var(--primary-glow)" /><h2>Discovery</h2></div>
             <div className={styles.categoryTabs}>
               {Object.keys(TOP_BOOKS).map(cat => (
                 <button key={cat} className={`${styles.tab} ${activeCategory === cat ? styles.activeTab : ''}`} onClick={() => setActiveCategory(cat as Category)}>

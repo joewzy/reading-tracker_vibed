@@ -1692,9 +1692,7 @@
 
 /* ===== MOBILE CARD UNIFICATION (Match Quote Card) ===== */
 @media (max-width: 768px) {
-
-    .statsGrid>div,
-    .discovery {
+    .mobileCenterCard {
         padding: 2.5rem !important;
         display: flex;
         flex-direction: column;
@@ -1703,8 +1701,8 @@
         border: 1px solid var(--glass-border) !important;
     }
 
-    .statHeader,
-    .sectionHeader {
+    .mobileCenterCard .statHeader,
+    .mobileCenterCard .sectionHeader {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -1714,16 +1712,16 @@
         margin-bottom: 1.5rem !important;
     }
 
-    .statHeader svg,
-    .sectionHeader svg {
+    .mobileCenterCard .statHeader svg,
+    .mobileCenterCard .sectionHeader svg {
         width: 26px !important;
         height: 26px !important;
         opacity: 0.35 !important;
         display: block;
     }
 
-    .statHeader h3,
-    .sectionHeader h3 {
+    .mobileCenterCard .statHeader h3,
+    .mobileCenterCard .sectionHeader h3 {
         font-family: var(--font-display) !important;
         font-size: 1.25rem !important;
         color: var(--text-main) !important;
@@ -1731,23 +1729,40 @@
         letter-spacing: 0.02em;
     }
 
-    .streakIndicator {
+    .mobileCenterCard .streakIndicator {
         justify-content: center;
         width: 100%;
     }
 
-    .statFooter {
+    .mobileCenterCard .statFooter {
         justify-content: center;
         width: 100%;
         gap: 1rem;
     }
 
-    .progressContainer {
+    .mobileCenterCard .progressContainer {
         width: 100%;
     }
 
-    .discoveryList {
+    .mobileCenterCard .discoveryList {
         width: 100%;
+    }
+
+    .mobileCenterCard .discoveryCard {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 0.8rem;
+    }
+
+    .mobileCenterCard .cardHeader {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        gap: 0.5rem;
     }
 }
 
