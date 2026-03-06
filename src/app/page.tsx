@@ -8,7 +8,7 @@ import {
   Flame, PlusCircle, LogOut, Github, Mail, Lock,
   User as UserIcon, ArrowRight, Trash2, Target, CheckCircle,
   Clock, BookMarked, X, Settings, Bell, Zap, Star, Shield, Trophy, StickyNote,
-  Brain, BarChart
+  Brain, BarChart, Sparkles
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import styles from './page.module.css'
