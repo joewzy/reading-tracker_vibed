@@ -1695,17 +1695,40 @@
 
     .statsGrid>div,
     .discovery {
-        padding: 2.5rem 1.25rem !important;
+        padding: 2.5rem !important;
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
+        border: 1px solid var(--glass-border) !important;
     }
 
     .statHeader,
     .sectionHeader {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         justify-content: center;
         width: 100%;
+        gap: 1rem !important;
+        margin-bottom: 1.5rem !important;
+    }
+
+    .statHeader svg,
+    .sectionHeader svg {
+        width: 26px !important;
+        height: 26px !important;
+        opacity: 0.35 !important;
+        display: block;
+    }
+
+    .statHeader h3,
+    .sectionHeader h3 {
+        font-family: var(--font-display) !important;
+        font-size: 1.25rem !important;
+        color: var(--text-main) !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.02em;
     }
 
     .streakIndicator {
