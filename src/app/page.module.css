@@ -247,7 +247,7 @@
 /* ===== STATS GRID ===== */
 .statsGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1.5rem;
     margin-bottom: 3.5rem;
 }
@@ -255,6 +255,7 @@
 @media (max-width: 768px) {
     .statsGrid {
         grid-template-columns: 1fr;
+        gap: 1.25rem;
         margin-bottom: 2rem;
     }
 }
@@ -503,10 +504,10 @@
     gap: 1.35rem;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
     .bookGrid {
         grid-template-columns: 1fr;
-        gap: 1rem;
+        gap: 1.25rem;
     }
 }
 
@@ -521,6 +522,14 @@
     display: flex;
     gap: 1.25rem;
     align-items: flex-start;
+}
+
+@media (max-width: 480px) {
+    .bookMain {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
 }
 
 .bookCover {
@@ -548,6 +557,15 @@
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 0.75rem;
+    gap: 0.5rem;
+}
+
+@media (max-width: 480px) {
+    .bookHeader {
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+    }
 }
 
 .bookMeta h3 {
@@ -616,17 +634,43 @@
 .inputWrapper {
     display: flex;
     gap: .45rem;
+    width: 100%;
+}
+
+@media (max-width: 480px) {
+    .inputWrapper {
+        flex-direction: row;
+        justify-content: center;
+    }
+    
+    .inputWrapper input {
+        max-width: 120px;
+    }
 }
 
 .miniAddBtn {
     background: var(--primary);
     color: #fff;
-    padding: 0 .9rem;
+    padding: 0 .95rem;
     border-radius: .65rem;
     display: flex;
     align-items: center;
+    justify-content: center;
     flex-shrink: 0;
     transition: var(--transition);
+    min-height: 40px;
+}
+
+@media (max-width: 480px) {
+    .miniAddBtn {
+        padding: 0 1.25rem;
+        min-height: 44px;
+    }
+    
+    .inputWrapper input {
+        min-height: 44px;
+        font-size: 1rem !important;
+    }
 }
 
 .miniAddBtn:hover {
@@ -1693,12 +1737,13 @@
 /* ===== MOBILE CARD UNIFICATION (Match Quote Card) ===== */
 @media (max-width: 768px) {
     .mobileCenterCard {
-        padding: 2.5rem !important;
+        padding: 2.5rem 1.5rem !important;
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
         border: 1px solid var(--glass-border) !important;
+        width: 100%;
     }
 
     .mobileCenterCard .statHeader,
