@@ -34,8 +34,17 @@
 
 @media (max-width: 480px) {
     .card {
-        gap: 1rem;
-        padding: 1.1rem;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 1.25rem;
+        padding: 1.5rem;
+    }
+    
+    .titleRow {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
     }
 }
 
