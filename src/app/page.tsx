@@ -427,10 +427,10 @@ export default function Dashboard() {
         </div>
         <div className={styles.headerActions}>
           <XPShop xp={userStats.xp} streakFreezes={userStats.streakFreezes} onPurchase={fetchData} />
-          <button className={styles.goalBtn} onClick={() => setShowGoalModal(true)}><Target size={15} /> {goal ? `${goal.target} pg goal` : 'Set Goal'}</button>
-          <button className="btn-primary" onClick={() => setShowAddBook(true)}><Plus size={15} /> Add Book</button>
-          <button className={styles.iconBtn} onClick={() => setShowSettings(true)}><Settings size={17} /></button>
-          <button className={styles.logoutBtn} onClick={() => signOut()}><LogOut size={17} /></button>
+          <motion.button whileTap={{ scale: 0.96 }} className={styles.goalBtn} onClick={() => setShowGoalModal(true)}><Target size={15} /> {goal ? `${goal.target} pg goal` : 'Set Goal'}</motion.button>
+          <motion.button whileTap={{ scale: 0.96 }} className="btn-primary" onClick={() => setShowAddBook(true)}><Plus size={15} /> Add Book</motion.button>
+          <motion.button whileTap={{ scale: 0.9 }} className={styles.iconBtn} onClick={() => setShowSettings(true)}><Settings size={17} /></motion.button>
+          <motion.button whileTap={{ scale: 0.9 }} className={styles.logoutBtn} onClick={() => signOut()}><LogOut size={17} /></motion.button>
         </div>
       </motion.header>
 
@@ -456,17 +456,9 @@ export default function Dashboard() {
 
       {/* Stats & Challenges Grid (2-column layout) */}
       <section className={styles.statsLayout}>
-          {/* Mobile-only section title */}
-          <div className="mobile-section-title" style={{ display: 'none' }}>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '1.25rem', paddingLeft: '0.25rem' }}>Today's Status</h2>
-          </div>
-          <style jsx>{`
-            @media (max-width: 768px) {
-              .mobile-section-title {
-                display: block !important;
-              }
-            }
-          `}</style>
+        <div className={styles.mainStats}>
+          {/* Mobile-only section title (Properly restored via CSS Modules) */}
+          <h2 className={styles.mobileSectionTitle}>Today's Status</h2>
 
           <motion.section variants={cv} initial="hidden" animate="visible" className={styles.statsGrid}>
             <motion.div variants={iv} className={`glass-card ${styles.mobileCenterCard}`}>
@@ -511,9 +503,14 @@ export default function Dashboard() {
               { key: 'activity', icon: <Clock size={13} />, label: 'Activity' },
               { key: 'achievements', icon: <Trophy size={13} />, label: 'Achievements' },
             ] as const).map(t => (
-              <button key={t.key} className={`${styles.mainTab} ${activeTab === t.key ? styles.activeMainTab : ''}`} onClick={() => setActiveTab(t.key)}>
+              <motion.button 
+                key={t.key} 
+                className={`${styles.mainTab} ${activeTab === t.key ? styles.activeMainTab : ''}`} 
+                onClick={() => setActiveTab(t.key)}
+                whileTap={{ scale: 0.95 }}
+              >
                 {t.icon} {t.label}
-              </button>
+              </motion.button>
             ))}
           </div>
 
@@ -752,18 +749,10 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      <AiBuddy sessions={sessions} books={activeBooks} onActivityLogged={fetchData} />
       <ReadingTimer books={books} onSessionLogged={fetchData} />
       
       {/* Mobile bottom nav safe-area spacer */}
-      <div className="mobile-only-spacer" style={{ height: '7rem', display: 'none' }} />
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .mobile-only-spacer {
-            display: block !important;
-          }
-        }
-      `}</style>
+      <div className={styles.mobileSpacer} />
       <BookNotes bookId={notesPanel?.bookId || ''} bookTitle={notesPanel?.bookTitle || ''} isOpen={!!notesPanel} onClose={() => setNotesPanel(null)} />
 
       {/* ===== RATING MODAL ===== */}
