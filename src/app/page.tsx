@@ -434,6 +434,17 @@ export default function Dashboard() {
         </div>
       </motion.header>
 
+      {/* Mobile-only Floating Action Button */}
+      <motion.button 
+        className={styles.mobileAddFAB} 
+        onClick={() => setShowAddBook(true)}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        whileTap={{ scale: 0.9 }}
+      >
+        <Plus size={28} />
+      </motion.button>
+
       {/* Quote Area (Full Width) */}
       <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={styles.quoteArea}>
         <div className={`${styles.quoteCard} glass-card`}>
@@ -445,7 +456,18 @@ export default function Dashboard() {
 
       {/* Stats & Challenges Grid (2-column layout) */}
       <section className={styles.statsLayout}>
-        <div className={styles.mainStats}>
+          {/* Mobile-only section title */}
+          <div className="mobile-section-title" style={{ display: 'none' }}>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '1.25rem', paddingLeft: '0.25rem' }}>Today's Status</h2>
+          </div>
+          <style jsx>{`
+            @media (max-width: 768px) {
+              .mobile-section-title {
+                display: block !important;
+              }
+            }
+          `}</style>
+
           <motion.section variants={cv} initial="hidden" animate="visible" className={styles.statsGrid}>
             <motion.div variants={iv} className={`glass-card ${styles.mobileCenterCard}`}>
               <div className={styles.statHeader}><TrendingUp size={17} color="var(--primary)" /><h3>Monthly Goal</h3></div>
@@ -730,7 +752,18 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
+      <AiBuddy sessions={sessions} books={activeBooks} onActivityLogged={fetchData} />
       <ReadingTimer books={books} onSessionLogged={fetchData} />
+      
+      {/* Mobile bottom nav safe-area spacer */}
+      <div className="mobile-only-spacer" style={{ height: '7rem', display: 'none' }} />
+      <style jsx>{`
+        @media (max-width: 768px) {
+          .mobile-only-spacer {
+            display: block !important;
+          }
+        }
+      `}</style>
       <BookNotes bookId={notesPanel?.bookId || ''} bookTitle={notesPanel?.bookTitle || ''} isOpen={!!notesPanel} onClose={() => setNotesPanel(null)} />
 
       {/* ===== RATING MODAL ===== */}
