@@ -8,7 +8,7 @@ import {
   Flame, PlusCircle, LogOut, Github, Mail, Lock,
   User as UserIcon, ArrowRight, Trash2, Target, CheckCircle,
   Clock, BookMarked, X, Settings, Bell, Zap, Star, Shield, Trophy, StickyNote,
-  Brain, BarChart, Sparkles
+  Brain, BarChart, Sparkles, Home, Compass, Activity
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import styles from './page.module.css'
@@ -82,6 +82,7 @@ export default function Dashboard() {
   const [pendingRating, setPendingRating] = useState(0)
   const [pendingReview, setPendingReview] = useState('')
   const [onboarding, setOnboarding] = useState<{ step: number } | null>(null)
+  const [mobileView, setMobileView] = useState<'home' | 'library' | 'activity' | 'discover'>('home')
 
   // Phase 3: Book Search State
   const [searchQuery, setSearchQuery] = useState('')
@@ -434,7 +435,7 @@ export default function Dashboard() {
         </div>
       </motion.header>
 
-      {/* Mobile-only Floating Action Button */}
+      {/* Mobile-only FAB — add book */}
       <motion.button 
         className={styles.mobileAddFAB} 
         onClick={() => setShowAddBook(true)}
@@ -442,7 +443,7 @@ export default function Dashboard() {
         animate={{ scale: 1, opacity: 1 }}
         whileTap={{ scale: 0.9 }}
       >
-        <Plus size={28} />
+        <Plus size={24} />
       </motion.button>
 
       {/* Quote Area (Full Width) */}
@@ -839,6 +840,26 @@ export default function Dashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ===== MOBILE BOTTOM NAVIGATION ===== */}
+      <nav className={styles.mobileNavBar}>
+        {([
+          { key: 'home',     icon: <Home size={22} />,     label: 'Home' },
+          { key: 'library',  icon: <BookOpen size={22} />, label: 'Library' },
+          { key: 'activity', icon: <Activity size={22} />, label: 'Activity' },
+          { key: 'discover', icon: <Compass size={22} />,  label: 'Discover' },
+        ] as const).map(tab => (
+          <button
+            key={tab.key}
+            className={`${styles.mobileNavTab} ${mobileView === tab.key ? styles.mobileNavTabActive : ''}`}
+            onClick={() => setMobileView(tab.key)}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </nav>
+
     </main>
   )
 }
