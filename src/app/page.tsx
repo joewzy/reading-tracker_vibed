@@ -458,164 +458,202 @@ export default function Dashboard() {
       {/* Stats & Challenges Grid (2-column layout) */}
       <section className={styles.statsLayout}>
         <div className={styles.mainStats}>
-          {/* Mobile-only section title (Properly restored via CSS Modules) */}
-          <h2 className={styles.mobileSectionTitle}>Today's Status</h2>
 
-          <motion.section variants={cv} initial="hidden" animate="visible" className={styles.statsGrid}>
-            <motion.div variants={iv} className={`glass-card ${styles.mobileCenterCard}`}>
-              <div className={styles.statHeader}><TrendingUp size={17} color="var(--primary)" /><h3>Monthly Goal</h3></div>
-              {goal ? (<>
-                <div className={styles.progressContainer}><motion.div initial={{ width: 0 }} animate={{ width: `${progressPercent}%` }} transition={{ duration: 1.5, ease: 'easeOut' }} className={styles.progressBar} /></div>
-                <div className={styles.statFooter}><p className={styles.statDetail}><strong>{totalPagesRead}</strong> / {goal.target} pages</p><span className={styles.percentage}>{Math.round(progressPercent)}%</span></div>
-                <ReadingChart data={insights.chartData} />
-              </>) : (
-                <div className={styles.noGoal}><p>No goal set yet.</p><button className={styles.setGoalBtn} onClick={() => setShowGoalModal(true)}><Target size={13} /> Set Goal</button></div>
-              )}
-            </motion.div>
+          {/* ---- HOME TAB: Stats Grid + Heatmap ---- */}
+          {/* On desktop always visible. On mobile only when mobileView === 'home' */}
+          <div style={undefined} className={mobileView !== 'home' ? styles.mobileHidden : undefined}>
 
-            <motion.div variants={iv} className={`glass-card ${styles.mobileCenterCard}`}>
-              <div className={styles.statHeader}><Flame size={17} color="#ef4444" /><h3>Daily Streak</h3></div>
-              <p className={styles.bigStat}>{insights.streak} <span className={styles.smallText}>{insights.streak === 1 ? 'day' : 'days'}</span></p>
-              <div className={styles.streakIndicator}>{[...Array(7)].map((_, i) => <div key={i} className={styles.streakDot} active-dot={i < insights.streak % 7 ? 'true' : 'false'} />)}</div>
-              {userStats.streakFreezes > 0 && <div className="freeze-active-label"><Shield size={11} /> {userStats.streakFreezes} active</div>}
-            </motion.div>
+            <motion.section variants={cv} initial="hidden" animate="visible" className={styles.statsGrid}>
+              <motion.div variants={iv} className={`glass-card`}>
+                <div className={styles.statHeader}><TrendingUp size={17} color="var(--primary)" /><h3>Monthly Goal</h3></div>
+                {goal ? (<>
+                  <div className={styles.progressContainer}><motion.div initial={{ width: 0 }} animate={{ width: `${progressPercent}%` }} transition={{ duration: 1.5, ease: 'easeOut' }} className={styles.progressBar} /></div>
+                  <div className={styles.statFooter}><p className={styles.statDetail}><strong>{totalPagesRead}</strong> / {goal.target} pages</p><span className={styles.percentage}>{Math.round(progressPercent)}%</span></div>
+                  <ReadingChart data={insights.chartData} />
+                </>) : (
+                  <div className={styles.noGoal}><p>No goal set yet.</p><button className={styles.setGoalBtn} onClick={() => setShowGoalModal(true)}><Target size={13} /> Set Goal</button></div>
+                )}
+              </motion.div>
 
-            <motion.div variants={iv} className={`glass-card ${styles.mobileCenterCard}`}>
-              <div className={styles.statHeader}><Trophy size={17} color="#f59e0b" /><h3>Achievements</h3></div>
-              <div className={styles.achievementGrid}>
-                {Object.entries(ACHIEVEMENTS).slice(0, 4).map(([key, a]) => (
-                  <div key={key} className={`${styles.achBadge} ${unlockedTypes.has(key) ? styles.achUnlocked : styles.achLocked}`} title={a.desc}>
-                    <span className={styles.achEmoji}>{a.emoji}</span>
-                  </div>
-                ))}
-              </div>
-              <button className={styles.viewMore} onClick={() => setActiveTab('achievements')}>View All <ArrowRight size={12} /></button>
-            </motion.div>
-          </motion.section>
+              <motion.div variants={iv} className={`glass-card`}>
+                <div className={styles.statHeader}><Flame size={17} color="#ef4444" /><h3>Daily Streak</h3></div>
+                <p className={styles.bigStat}>{insights.streak} <span className={styles.smallText}>{insights.streak === 1 ? 'day' : 'days'}</span></p>
+                <div className={styles.streakIndicator}>{[...Array(7)].map((_, i) => <div key={i} className={styles.streakDot} active-dot={i < insights.streak % 7 ? 'true' : 'false'} />)}</div>
+                {userStats.streakFreezes > 0 && <div className="freeze-active-label"><Shield size={11} /> {userStats.streakFreezes} active</div>}
+              </motion.div>
 
-          {/* Reading Heatmap */}
-          <ReadingCalendar sessions={sessions} />
+              <motion.div variants={iv} className={`glass-card`}>
+                <div className={styles.statHeader}><Trophy size={17} color="#f59e0b" /><h3>Achievements</h3></div>
+                <div className={styles.achievementGrid}>
+                  {Object.entries(ACHIEVEMENTS).slice(0, 4).map(([key, a]) => (
+                    <div key={key} className={`${styles.achBadge} ${unlockedTypes.has(key) ? styles.achUnlocked : styles.achLocked}`} title={a.desc}>
+                      <span className={styles.achEmoji}>{a.emoji}</span>
+                    </div>
+                  ))}
+                </div>
+                <button className={styles.viewMore} onClick={() => { setActiveTab('achievements'); setMobileView('library') }}>View All <ArrowRight size={12} /></button>
+              </motion.div>
+            </motion.section>
 
-          {/* Tabs Navigation */}
-          <div className={styles.mainTabs}>
-            {([
-              { key: 'reading', icon: <BookMarked size={13} />, label: `Reading (${activeBooks.length})` },
-              { key: 'completed', icon: <CheckCircle size={13} />, label: `Completed (${completedBooks.length})` },
-              { key: 'activity', icon: <Clock size={13} />, label: 'Activity' },
-              { key: 'achievements', icon: <Trophy size={13} />, label: 'Achievements' },
-            ] as const).map(t => (
-              <motion.button 
-                key={t.key} 
-                className={`${styles.mainTab} ${activeTab === t.key ? styles.activeMainTab : ''}`} 
-                onClick={() => setActiveTab(t.key)}
-                whileTap={{ scale: 0.95 }}
-              >
-                {t.icon} {t.label}
-              </motion.button>
-            ))}
+            {/* Reading Heatmap */}
+            <ReadingCalendar sessions={sessions} />
           </div>
 
-          <div className={styles.tabContent}>
-            <AnimatePresence mode="wait">
-              {activeTab === 'reading' && (
-                <motion.div key="reading" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.bookGrid}>
-                  {activeBooks.length > 0 ? activeBooks.map(book => (
-                    <motion.div key={book.id} layout whileHover={{ y: -5 }} className={`${styles.bookCard} glass-card`}>
-                      <div className={styles.bookMain}>
-                        {book.coverImage && (
-                          <div className={styles.bookCover}>
-                            <img src={book.coverImage} alt={book.title} />
-                          </div>
-                        )}
-                        <div className={styles.bookDetails}>
-                          <div className={styles.bookHeader}>
-                            <div className={styles.bookMeta}><h3>{book.title}</h3><p>by {book.author}</p></div>
-                            <div className={styles.bookActions}>
-                              <button className={styles.notesBtn} onClick={() => setNotesPanel({ bookId: book.id, bookTitle: book.title })} title="Notes"><StickyNote size={13} /></button>
-                              <button className={styles.deleteBtn} onClick={() => handleDeleteBook(book.id)}><Trash2 size={13} /></button>
-                            </div>
-                          </div>
-                          <div className={styles.progressLabel}><span>{book.currentPage} / {book.totalPages} pages</span><span>{Math.min(100, Math.round((book.currentPage / book.totalPages) * 100))}%</span></div>
-                          <div className={styles.miniProgress}><div className={styles.miniBar} style={{ width: `${Math.min(100, (book.currentPage / book.totalPages) * 100)}%` }} /></div>
-                          {getEstDaysToFinish(book) !== null && getEstDaysToFinish(book)! > 0 && (
-                            <div className={styles.estFinish}>
-                              <Clock size={11} /> <span>Est. {getEstDaysToFinish(book)} days left</span>
+          {/* ---- LIBRARY TAB: Book tabs (reading / completed / achievements) ---- */}
+          <div className={mobileView !== 'library' ? styles.mobileHidden : undefined}>
+            {/* Tabs Navigation */}
+            <div className={styles.mainTabs}>
+              {([
+                { key: 'reading', icon: <BookMarked size={13} />, label: `Reading (${activeBooks.length})` },
+                { key: 'completed', icon: <CheckCircle size={13} />, label: `Completed (${completedBooks.length})` },
+                { key: 'achievements', icon: <Trophy size={13} />, label: 'Achievements' },
+              ] as const).map(t => (
+                <motion.button
+                  key={t.key}
+                  className={`${styles.mainTab} ${activeTab === t.key ? styles.activeMainTab : ''}`}
+                  onClick={() => setActiveTab(t.key)}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {t.icon} {t.label}
+                </motion.button>
+              ))}
+            </div>
+
+            <div className={styles.tabContent}>
+              <AnimatePresence mode="wait">
+                {activeTab === 'reading' && (
+                  <motion.div key="reading" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.bookGrid}>
+                    {activeBooks.length > 0 ? activeBooks.map(book => (
+                      <motion.div key={book.id} layout whileHover={{ y: -5 }} className={`${styles.bookCard} glass-card`}>
+                        <div className={styles.bookMain}>
+                          {book.coverImage && (
+                            <div className={styles.bookCover}>
+                              <img src={book.coverImage} alt={book.title} />
                             </div>
                           )}
-                          <div className={styles.logAction}>
-                            <div className={styles.inputWrapper}>
-                              <input type="number" placeholder="Pages" className="input-field" value={logPages[book.id] || ''} onChange={e => setLogPages(p => ({ ...p, [book.id]: e.target.value }))} />
-                              <button className={styles.miniAddBtn} onClick={() => handleLogSession(book.id)}><PlusCircle size={16} /></button>
+                          <div className={styles.bookDetails}>
+                            <div className={styles.bookHeader}>
+                              <div className={styles.bookMeta}><h3>{book.title}</h3><p>by {book.author}</p></div>
+                              <div className={styles.bookActions}>
+                                <button className={styles.notesBtn} onClick={() => setNotesPanel({ bookId: book.id, bookTitle: book.title })} title="Notes"><StickyNote size={13} /></button>
+                                <button className={styles.deleteBtn} onClick={() => handleDeleteBook(book.id)}><Trash2 size={13} /></button>
+                              </div>
+                            </div>
+                            <div className={styles.progressLabel}><span>{book.currentPage} / {book.totalPages} pages</span><span>{Math.min(100, Math.round((book.currentPage / book.totalPages) * 100))}%</span></div>
+                            <div className={styles.miniProgress}><div className={styles.miniBar} style={{ width: `${Math.min(100, (book.currentPage / book.totalPages) * 100)}%` }} /></div>
+                            {getEstDaysToFinish(book) !== null && getEstDaysToFinish(book)! > 0 && (
+                              <div className={styles.estFinish}>
+                                <Clock size={11} /> <span>Est. {getEstDaysToFinish(book)} days left</span>
+                              </div>
+                            )}
+                            <div className={styles.logAction}>
+                              <div className={styles.inputWrapper}>
+                                <input type="number" placeholder="Pages read" className="input-field" value={logPages[book.id] || ''} onChange={e => setLogPages(p => ({ ...p, [book.id]: e.target.value }))} />
+                                <button className={styles.miniAddBtn} onClick={() => handleLogSession(book.id)}><PlusCircle size={16} /></button>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  )) : <div className={styles.empty}><BookOpen size={42} opacity={0.12} /><p>No books in progress.</p></div>}
-                </motion.div>
-              )}
+                      </motion.div>
+                    )) : <div className={styles.empty}><BookOpen size={42} opacity={0.12} /><p>No books in progress.</p></div>}
+                  </motion.div>
+                )}
 
-              {activeTab === 'completed' && (
-                <motion.div key="completed" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.bookGrid}>
-                  {completedBooks.length > 0 ? completedBooks.map(book => (
-                    <motion.div key={book.id} layout className={`${styles.bookCard} ${styles.completedCard} glass-card`}>
-                      <div className={styles.bookHeader}>
-                        <div className={styles.bookMeta}><h3>{book.title}</h3><p>by {book.author}</p></div>
-                        <div className={styles.completedBadge}><CheckCircle size={18} /></div>
-                      </div>
-                      <p className={styles.completedInfo}>{book.totalPages} pages · ✅ Finished</p>
-                      <div className={styles.starRow}>
-                        {[1, 2, 3, 4, 5].map(s => (
-                          <Star key={s} size={16} className={s <= (book.rating ?? 0) ? styles.starFilled : styles.starEmpty} />
-                        ))}
-                        {!book.rating && (
-                          <button className={styles.rateBtn} onClick={() => { setRatingModal({ bookId: book.id, bookTitle: book.title }); setPendingRating(0); setPendingReview('') }}>Rate it</button>
-                        )}
-                      </div>
-                      {book.review && <p className={styles.reviewText}>&ldquo;{book.review}&rdquo;</p>}
-                    </motion.div>
-                  )) : <div className={styles.empty}><Trophy size={42} opacity={0.12} /><p>No books completed yet.</p></div>}
-                </motion.div>
-              )}
+                {activeTab === 'completed' && (
+                  <motion.div key="completed" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.bookGrid}>
+                    {completedBooks.length > 0 ? completedBooks.map(book => (
+                      <motion.div key={book.id} layout className={`${styles.bookCard} ${styles.completedCard} glass-card`}>
+                        <div className={styles.bookHeader}>
+                          <div className={styles.bookMeta}><h3>{book.title}</h3><p>by {book.author}</p></div>
+                          <div className={styles.completedBadge}><CheckCircle size={18} /></div>
+                        </div>
+                        <p className={styles.completedInfo}>{book.totalPages} pages · ✅ Finished</p>
+                        <div className={styles.starRow}>
+                          {[1, 2, 3, 4, 5].map(s => (
+                            <Star key={s} size={16} className={s <= (book.rating ?? 0) ? styles.starFilled : styles.starEmpty} />
+                          ))}
+                          {!book.rating && (
+                            <button className={styles.rateBtn} onClick={() => { setRatingModal({ bookId: book.id, bookTitle: book.title }); setPendingRating(0); setPendingReview('') }}>Rate it</button>
+                          )}
+                        </div>
+                        {book.review && <p className={styles.reviewText}>&ldquo;{book.review}&rdquo;</p>}
+                      </motion.div>
+                    )) : <div className={styles.empty}><Trophy size={42} opacity={0.12} /><p>No books completed yet.</p></div>}
+                  </motion.div>
+                )}
 
-              {activeTab === 'activity' && (
-                <motion.div key="activity" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.activityList}>
-                  {sessions.length > 0 ? sessions.map((s, i) => (
-                    <div key={s.id} className={`${styles.activityItem} glass-card`}>
-                      <div className={styles.activityIcon}><BookOpen size={15} color="var(--primary)" /></div>
-                      <div className={styles.activityInfo}>
-                        <p className={styles.activityTitle}><strong>{s.pagesRead} pages</strong> in <em>{s.book?.title}</em></p>
-                        <p className={styles.activityMeta}>{new Date(s.date).toLocaleDateString()}</p>
-                      </div>
-                      <div className={styles.activityXp}>+10 XP</div>
-                    </div>
-                  )) : <div className={styles.empty}><Clock size={42} opacity={0.12} /><p>No sessions logged yet.</p></div>}
-                </motion.div>
-              )}
-
-              {activeTab === 'achievements' && (
-                <motion.div key="achievements" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.achievementsFull}>
-                  {Object.entries(ACHIEVEMENTS).map(([key, a]) => {
-                    const done = unlockedTypes.has(key)
-                    return (
-                      <div key={key} className={`${styles.achCard} glass-card ${done ? styles.achCardUnlocked : ''}`}>
-                        <div className={styles.achCardEmoji}>{a.emoji}</div>
-                        <div><div className={styles.achCardLabel}>{a.label}</div><div className={styles.achCardDesc}>{a.desc}</div></div>
-                        <div className={`${styles.achStatus} ${done ? styles.achStatusDone : ''}`}>{done ? <CheckCircle size={16} /> : <Shield size={16} />}</div>
-                      </div>
-                    )
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                {activeTab === 'achievements' && (
+                  <motion.div key="achievements" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.achievementsFull}>
+                    {Object.entries(ACHIEVEMENTS).map(([key, a]) => {
+                      const done = unlockedTypes.has(key)
+                      return (
+                        <div key={key} className={`${styles.achCard} glass-card ${done ? styles.achCardUnlocked : ''}`}>
+                          <div className={styles.achCardEmoji}>{a.emoji}</div>
+                          <div><div className={styles.achCardLabel}>{a.label}</div><div className={styles.achCardDesc}>{a.desc}</div></div>
+                          <div className={`${styles.achStatus} ${done ? styles.achStatusDone : ''}`}>{done ? <CheckCircle size={16} /> : <Shield size={16} />}</div>
+                        </div>
+                      )
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
+
+          {/* ---- ACTIVITY TAB: Session log ---- */}
+          <div className={mobileView !== 'activity' ? styles.mobileHidden : undefined}>
+            <motion.div key="activity" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={styles.activityList}>
+              {sessions.length > 0 ? sessions.map(s => (
+                <div key={s.id} className={`${styles.activityItem} glass-card`}>
+                  <div className={styles.activityIcon}><BookOpen size={15} color="var(--primary)" /></div>
+                  <div className={styles.activityInfo}>
+                    <p className={styles.activityTitle}><strong>{s.pagesRead} pages</strong> in <em>{s.book?.title}</em></p>
+                    <p className={styles.activityMeta}>{new Date(s.date).toLocaleDateString()}</p>
+                  </div>
+                  <div className={styles.activityXp}>+10 XP</div>
+                </div>
+              )) : <div className={styles.empty}><Clock size={42} opacity={0.12} /><p>No sessions logged yet.</p></div>}
+            </motion.div>
+          </div>
+
+          {/* ---- DISCOVER TAB (mobile-only panel, mirrors the aside) ---- */}
+          <div className={`${styles.mobileDiscoverPane} ${mobileView !== 'discover' ? styles.mobileHidden : ''}`}>
+            <ChallengePanel challenges={challenges} />
+            <motion.section variants={cv} initial="hidden" animate="visible" className={styles.discovery}>
+              <div className={styles.sectionHeader}><Sparkles size={17} color="var(--primary-glow)" /><h2>Discovery</h2></div>
+              <div className={styles.categoryTabs}>
+                {Object.keys(TOP_BOOKS).map(cat => (
+                  <button key={cat} className={`${styles.tab} ${activeCategory === cat ? styles.activeTab : ''}`} onClick={() => setActiveCategory(cat as Category)}>
+                    {cat.charAt(0) + cat.slice(1).toLowerCase()}
+                  </button>
+                ))}
+              </div>
+              <AnimatePresence mode="wait">
+                <motion.div key={activeCategory} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.discoveryList}>
+                  {TOP_BOOKS[activeCategory].map((book, idx) => (
+                    <div key={idx} className={`${styles.discoveryCard} glass-card`}>
+                      <div className={styles.cardHeader}>
+                        <span className={styles.rank}>{idx + 1}</span>
+                        <div className={styles.discoveryMeta}><h3>{book.title}</h3><p className={styles.author}>{book.author}</p></div>
+                      </div>
+                      <button className={styles.addSuggested} onClick={() => handleAddBook(null, { title: book.title, author: book.author, totalPages: '300' })}>
+                        <Plus size={11} /> Add
+                      </button>
+                    </div>
+                  ))}
+                </motion.div>
+              </AnimatePresence>
+            </motion.section>
+          </div>
+
         </div>
 
-        <aside className={`${styles.sideStats} ${styles.mobileCenterCard}`}>
+        {/* Desktop sidebar — hidden on mobile via CSS */}
+        <aside className={styles.sideStats}>
           <ChallengePanel challenges={challenges} />
 
           {/* Discovery Sidebar */}
-          <motion.section variants={cv} initial="hidden" animate="visible" className={`${styles.discovery} ${styles.mobileCenterCard}`}>
+          <motion.section variants={cv} initial="hidden" animate="visible" className={styles.discovery}>
             <div className={styles.sectionHeader}><Sparkles size={17} color="var(--primary-glow)" /><h2>Discovery</h2></div>
             <div className={styles.categoryTabs}>
               {Object.keys(TOP_BOOKS).map(cat => (
@@ -644,6 +682,7 @@ export default function Dashboard() {
       </section>
 
       {/* MODALS */}
+
       <AnimatePresence>
         {showAddBook && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={styles.modalOverlay}>

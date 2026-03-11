@@ -1795,6 +1795,20 @@
         height: 5rem;
     }
 
+    /* ---- MOBILE NAV VISIBILITY CONTROL ---- */
+    /* On mobile, sections wrap in divs with mobileHidden when not active.
+       On desktop, this class is never applied (mobileView state is ignored). */
+    .mobileHidden {
+        display: none !important;
+    }
+
+    /* Discover pane: stacked panels matching desktop aside layout */
+    .mobileDiscoverPane {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
     /* ---- HEADER : Slim sticky top bar ---- */
     .header {
         flex-direction: row;
