@@ -41,8 +41,9 @@ export async function POST(request: Request) {
         })
 
         return NextResponse.json(book)
-    } catch (error) {
-        return NextResponse.json({ error: 'Failed to create book' }, { status: 500 })
+    } catch (error: any) {
+        console.error("DEBUG BOOK CREATION ERROR:", error)
+        return NextResponse.json({ error: 'Failed to create book', details: error?.message || String(error) }, { status: 500 })
     }
 }
 

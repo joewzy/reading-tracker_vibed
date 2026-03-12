@@ -1787,26 +1787,30 @@
    MOBILE REDESIGN — CLEAN & MODERN (max-width: 768px)
    Single unified block. Desktop styles above are untouched.
    =================================================================== */
+
+/* ---- MOBILE NAV VISIBILITY CONTROL ---- */
+/* Exported outside media query so CSS Modules passes them to React */
+.mobileHidden {
+}
+.mobileDiscoverPane {
+}
+
 @media (max-width: 768px) {
+    /* Apply mobile mechanics here */
+    .mobileHidden {
+        display: none !important;
+    }
+    
+    .mobileDiscoverPane {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
 
     /* ---- CONTAINER ---- */
     .mobileSpacer {
         display: block;
         height: 5rem;
-    }
-
-    /* ---- MOBILE NAV VISIBILITY CONTROL ---- */
-    /* On mobile, sections wrap in divs with mobileHidden when not active.
-       On desktop, this class is never applied (mobileView state is ignored). */
-    .mobileHidden {
-        display: none !important;
-    }
-
-    /* Discover pane: stacked panels matching desktop aside layout */
-    .mobileDiscoverPane {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
     }
 
     /* ---- HEADER : Slim sticky top bar ---- */
