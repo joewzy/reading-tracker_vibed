@@ -38,7 +38,7 @@ export default function XPShop({ xp, streakFreezes, onPurchase }: Props) {
 
     return (
         <>
-            <button className={styles.shopBtnTrigger} onClick={() => setIsOpen(true)}>
+            <button id="shop-trigger-btn" className={styles.shopBtnTrigger} onClick={() => setIsOpen(true)}>
                 <ShoppingCart size={18} />
                 <span>Shop</span>
             </button>

@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, BookOpen, TrendingUp, Search, Quote as QuoteIcon,
   Flame, PlusCircle, LogOut, Github, Mail, Lock,
   User as UserIcon, ArrowRight, Trash2, Target, CheckCircle,
-  Clock, BookMarked, X, Settings, Bell, Zap, Star, Shield, Trophy, StickyNote,
-  Brain, BarChart, Sparkles, Home, Compass, Activity
+  Clock, BookMarked, X, Settings, Bell, Zap, Star, Shield, Trophy, StickyNote
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import styles from './page.module.css'
@@ -17,12 +16,13 @@ import ReadingChart from '@/components/ReadingChart'
 import ReadingTimer from '@/components/ReadingTimer'
 import BookNotes from '@/components/BookNotes'
 import ReadingCalendar from '@/components/ReadingCalendar'
+import MobileNav from '@/components/MobileNav'
 import ThemeRegistry from '@/components/ThemeRegistry'
 import XPShop from '@/components/XPShop'
 import ChallengePanel from '@/components/ChallengePanel'
 import AiBuddy from '@/components/AiBuddy'
 
-interface Book { id: string; title: string; author: string; totalPages: number; currentPage: number; status: string; coverImage?: string | null; description?: string | null; rating?: number | null; review?: string | null }
+interface Book { id: string; title: string; author: string; totalPages: number; currentPage: number; status: string; coverImage?: string | null; description?: string | null }
 interface ActivitySession { id: string; pagesRead: number; duration: number | null; date: string; book: { title: string } }
 interface Goal { id: string; target: number; type: string }
 interface Insights { streak: number; chartData: { name: string; pages: number }[]; averagePPH?: number }
@@ -62,6 +62,11 @@ export default function Dashboard() {
   const [userStats, setUserStats] = useState<UserStats>({ xp: 0, level: 1, notificationEmail: null, streakFreezes: 0, activeTheme: 'DARK_DEFAULT', achievements: [] })
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'reading' | 'completed' | 'activity' | 'achievements'>('reading')
+  const [librarySortOrder, setLibrarySortOrder] = useState<'recent' | 'progress' | 'title'>('recent')
+  const [libraryViewMode, setLibraryViewMode] = useState<'grid' | 'list'>('grid')
+  
+  const tabsRef = useRef<HTMLDivElement>(null)
+
   const [showAddBook, setShowAddBook] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -78,11 +83,6 @@ export default function Dashboard() {
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [challenges, setChallenges] = useState<Challenge[]>([])
-  const [ratingModal, setRatingModal] = useState<{ bookId: string; bookTitle: string } | null>(null)
-  const [pendingRating, setPendingRating] = useState(0)
-  const [pendingReview, setPendingReview] = useState('')
-  const [onboarding, setOnboarding] = useState<{ step: number } | null>(null)
-  const [mobileView, setMobileView] = useState<'home' | 'library' | 'activity' | 'discover'>('home')
 
   // Phase 3: Book Search State
   const [searchQuery, setSearchQuery] = useState('')
@@ -121,43 +121,24 @@ export default function Dashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      const endpoints = [
-        '/api/books', '/api/goals', '/api/insights',
-        '/api/sessions', '/api/user/settings', '/api/challenges'
-      ]
-      const responses = await Promise.all(endpoints.map(e => fetch(e)))
-
-      const [bD, gD, iD, sD, uD, cD] = await Promise.all(
-        responses.map(async r => {
-          if (!r.ok) return null
-          try { return await r.json() } catch { return null }
-        })
-      )
-
-      if (bD && Array.isArray(bD)) setBooks(bD)
+      const [bR, gR, iR, sR, uR, cR] = await Promise.all([
+        fetch('/api/books'), fetch('/api/goals'), fetch('/api/insights'),
+        fetch('/api/sessions'), fetch('/api/user/settings'), fetch('/api/challenges'),
+      ])
+      const [bD, gD, iD, sD, uD, cD] = await Promise.all([bR.json(), gR.json(), iR.json(), sR.json(), uR.json(), cR.json()])
+      if (Array.isArray(bD)) setBooks(bD)
       if (gD && !gD.error) setGoal(gD)
       if (iD && !iD.error) setInsights(iD)
-      if (sD && Array.isArray(sD)) setSessions(sD)
-      if (uD && !uD.error) {
-        setUserStats(uD)
-        setNotifEmail(uD.notificationEmail || '')
-      }
-      if (cD && Array.isArray(cD)) setChallenges(cD)
-    } catch (e) {
-      console.error('Fetch error:', e)
-    } finally {
-      setLoading(false)
-    }
+      if (Array.isArray(sD)) setSessions(sD)
+      if (uD && !uD.error) { setUserStats(uD); setNotifEmail(uD.notificationEmail || '') }
+      if (Array.isArray(cD)) setChallenges(cD)
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
   }, [])
 
-
   useEffect(() => {
-    if (status === 'authenticated') {
-      fetchData()
-      // Show onboarding for brand-new users (only once)
-      const seen = localStorage.getItem('rv_onboarded')
-      if (!seen) setOnboarding({ step: 1 })
-    } else if (status === 'unauthenticated') setLoading(false)
+    if (status === 'authenticated') fetchData()
+    else if (status === 'unauthenticated') setLoading(false)
   }, [status, fetchData])
 
   const showXpPop = (xp: number, ach?: string) => {
@@ -186,27 +167,9 @@ export default function Dashboard() {
   const handleAddBook = async (e: React.FormEvent | null, data?: { title?: string; author?: string; totalPages?: string; coverImage?: string | null; description?: string | null }) => {
     if (e) e.preventDefault()
     const payload = data || newBook
-    try {
-      const r = await fetch('/api/books', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      if (r.ok) {
-        setNewBook({ title: '', author: '', totalPages: '', coverImage: null, description: '' });
-        setShowAddBook(false);
-        fetchData();
-        boom()
-      } else {
-        const err = await r.json()
-        console.error('Failed to add book:', err)
-        alert('Failed to add book: ' + (err.details || err.error || 'Unknown error'))
-      }
-    } catch (err) {
-      console.error('Error adding book:', err)
-    }
+    const r = await fetch('/api/books', { method: 'POST', body: JSON.stringify(payload) })
+    if (r.ok) { setNewBook({ title: '', author: '', totalPages: '', coverImage: null, description: '' }); setShowAddBook(false); fetchData(); boom() }
   }
-
 
   const handleDeleteBook = async (id: string) => {
     if (!confirm('Remove this book?')) return
@@ -215,63 +178,25 @@ export default function Dashboard() {
 
   const handleLogSession = async (bookId: string) => {
     const pages = logPages[bookId]; if (!pages || parseInt(pages) <= 0) return
-    try {
-      const r = await fetch('/api/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookId, pagesRead: pages })
-      })
-      if (r.ok) {
-        const d = await r.json(); setLogPages(p => ({ ...p, [bookId]: '' })); fetchData()
-        boom(); showXpPop(d.xpGained ?? 10, d.newAchievements?.[0])
-        if (d.autoCompleted) setTimeout(() => alert('🎉 You finished the book!'), 600)
-      } else {
-        const err = await r.json()
-        alert('Failed to log session: ' + (err.error || 'Unknown error'))
-      }
-    } catch (err) {
-      console.error('Error logging session:', err)
+    const r = await fetch('/api/sessions', { method: 'POST', body: JSON.stringify({ bookId, pagesRead: pages }) })
+    if (r.ok) {
+      const d = await r.json(); setLogPages(p => ({ ...p, [bookId]: '' })); fetchData()
+      boom(); showXpPop(d.xpGained ?? 10, d.newAchievements?.[0])
+      if (d.autoCompleted) setTimeout(() => alert('🎉 You finished the book!'), 600)
     }
   }
-
 
   const handleSetGoal = async (e: React.FormEvent) => {
     e.preventDefault(); const now = new Date()
-    try {
-      const r = await fetch('/api/goals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: goalTarget, type: 'PAGES', month: now.getMonth() + 1, year: now.getFullYear() }) })
-      if (r.ok) { setShowGoalModal(false); setGoalTarget(''); fetchData() }
-      else {
-        const err = await r.json()
-        alert('Failed to set goal: ' + (err.details || err.error || 'Unknown error'))
-      }
-    } catch (err) {
-      console.error('Error setting goal:', err)
-    }
+    const r = await fetch('/api/goals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: goalTarget, type: 'PAGES', month: now.getMonth() + 1, year: now.getFullYear() }) })
+    if (r.ok) { setShowGoalModal(false); setGoalTarget(''); fetchData() }
   }
-
 
   const handleSaveEmail = async (e: React.FormEvent) => {
     e.preventDefault(); setSavingEmail(true)
     const body = { notificationEmail: notifEmail, activeTheme: userStats.activeTheme }
     await fetch('/api/user/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     setSavingEmail(false); fetchData(); setShowSettings(false)
-  }
-
-  const handleSaveRating = async () => {
-    if (!ratingModal || pendingRating === 0) return
-    await fetch(`/api/books/${ratingModal.bookId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rating: pendingRating, review: pendingReview || null }),
-    })
-    setRatingModal(null)
-    fetchData()
-  }
-
-  const dismissOnboarding = (goToStep?: number) => {
-    if (goToStep) { setOnboarding({ step: goToStep }); return }
-    localStorage.setItem('rv_onboarded', '1')
-    setOnboarding(null)
   }
 
   const handleThemeChange = async (theme: string) => {
@@ -288,90 +213,66 @@ export default function Dashboard() {
   if (status === 'unauthenticated') {
     return (
       <div className={styles.landingPage}>
-        <div className={styles.ambientGlow1} />
-        <div className={styles.ambientGlow2} />
-
-        <div className={styles.landingContainer}>
-          <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }} className={styles.landingHero}>
-            <div className={styles.landingLogo} style={{ justifyContent: 'flex-start' }}><BookOpen size={64} className={styles.logoGlow} /></div>
-            <h1>ReaderVerse</h1>
-            <p className={styles.landingSubtitle}>Your gamified reading sanctuary. Transform your reading habit with XP, achievements, and AI-powered insights.</p>
-
-            <div className={styles.featureGrid}>
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className={styles.featureCard}>
-                <div className={styles.featureIcon}><Trophy size={20} /></div>
-                <div className={styles.featureText}><h3>Gamified Tracking</h3><p>Earn XP, level up, and unlock achievements for reading.</p></div>
-              </motion.div>
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className={styles.featureCard}>
-                <div className={styles.featureIcon}><Brain size={20} /></div>
-                <div className={styles.featureText}><h3>AI Buddy</h3><p>Chat with an AI about your books and get personalized insights.</p></div>
-              </motion.div>
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className={styles.featureCard}>
-                <div className={styles.featureIcon}><BarChart size={20} /></div>
-                <div className={styles.featureText}><h3>Deep Stats</h3><p>Visualize your reading speed, streak trends, and completion rates.</p></div>
-              </motion.div>
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className={styles.featureCard}>
-                <div className={styles.featureIcon}><Star size={20} /></div>
-                <div className={styles.featureText}><h3>Beautiful Themes</h3><p>Customize your reading sanctuary with immersive themes.</p></div>
-              </motion.div>
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className={styles.landingContent}>
+          <div className={styles.landingBranding}>
+            <div className={styles.landingLogo}><BookOpen size={72} className={styles.logoGlow} /></div>
+            <h1 className={styles.landingTitle}>ReaderVerse</h1>
+            <p className={styles.landingSubtitle}>Your gamified reading sanctuary. Level up your mind.</p>
+            <div className={styles.landingFeatures}><span>🎮 XP & Levels</span><span>🏆 Achievements</span><span>📧 Daily Reminders</span></div>
+          </div>
+          <div className={`${styles.authCard} glass-card`}>
+            <div className={styles.authTabs}>
+              <button className={`${styles.authTab} ${authMode === 'login' ? styles.activeAuthTab : ''}`} onClick={() => setAuthMode('login')}>Login</button>
+              <button className={`${styles.authTab} ${authMode === 'signup' ? styles.activeAuthTab : ''}`} onClick={() => setAuthMode('signup')}>Sign Up</button>
             </div>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.2 }}>
-            <div className={`${styles.authCard} glass-card`}>
-              <div className={styles.authTabs}>
-                <button className={`${styles.authTab} ${authMode === 'login' ? styles.activeAuthTab : ''}`} onClick={() => setAuthMode('login')}>Login</button>
-                <button className={`${styles.authTab} ${authMode === 'signup' ? styles.activeAuthTab : ''}`} onClick={() => setAuthMode('signup')}>Sign Up</button>
+            <form onSubmit={handleAuth} className={styles.authForm}>
+              <AnimatePresence>
+                {authMode === 'signup' && (
+                  <motion.div key="name" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className={styles.inputGroup}>
+                    <UserIcon size={16} className={styles.inputIcon} />
+                    <input type="text" placeholder="Full Name" required value={authForm.name} onChange={e => setAuthForm({ ...authForm, name: e.target.value })} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div className={styles.inputGroup}>
+                <Mail size={16} className={styles.inputIcon} />
+                <input type="email" placeholder="Email" required value={authForm.email} onChange={e => setAuthForm({ ...authForm, email: e.target.value })} />
               </div>
-              <form onSubmit={handleAuth} className={styles.authForm}>
-                <AnimatePresence>
-                  {authMode === 'signup' && (
-                    <motion.div key="name" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className={styles.inputGroup}>
-                      <UserIcon size={16} className={styles.inputIcon} />
-                      <input type="text" placeholder="Full Name" required value={authForm.name} onChange={e => setAuthForm({ ...authForm, name: e.target.value })} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <div className={styles.inputGroup}>
-                  <Mail size={16} className={styles.inputIcon} />
-                  <input type="email" placeholder="Email" required value={authForm.email} onChange={e => setAuthForm({ ...authForm, email: e.target.value })} />
-                </div>
-                <div className={styles.inputGroup} style={{ marginTop: '0.85rem' }}>
-                  <Lock size={16} className={styles.inputIcon} />
-                  <input type="password" placeholder="Password" required value={authForm.password} onChange={e => setAuthForm({ ...authForm, password: e.target.value })} />
-                </div>
-                {authError && <p className={styles.errorText}>{authError}</p>}
-                <button type="submit" className={styles.submitAuthBtn} disabled={authLoading}>
-                  {authLoading ? 'Processing...' : authMode === 'login' ? 'Enter Sanctuary' : 'Begin Journey'}
-                  {!authLoading && <ArrowRight size={16} />}
-                </button>
-              </form>
-              <div className={styles.divider}><span>or</span></div>
-              <div className={styles.authForm}>
-                <button
-                  className={styles.submitAuthBtn}
-                  style={{ marginBottom: '1rem', display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', color: '#000000' }}
-                  onClick={() => signIn('google')}
-                >
-                  <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                  </svg>
-                  Continue with Google
-                </button>
-                <button
-                  className={styles.githubBtn}
-                  style={{ width: '100%', padding: '0.85rem' }}
-                  onClick={() => signIn('github')}
-                >
-                  <Github size={18} /> Continue with GitHub
-                </button>
+              <div className={styles.inputGroup} style={{ marginTop: '0.85rem' }}>
+                <Lock size={16} className={styles.inputIcon} />
+                <input type="password" placeholder="Password" required value={authForm.password} onChange={e => setAuthForm({ ...authForm, password: e.target.value })} />
               </div>
+              {authError && <p className={styles.errorText}>{authError}</p>}
+              <button type="submit" className={styles.submitAuthBtn} disabled={authLoading}>
+                {authLoading ? 'Processing...' : authMode === 'login' ? 'Enter Sanctuary' : 'Begin Journey'}
+                {!authLoading && <ArrowRight size={16} />}
+              </button>
+            </form>
+            <div className={styles.divider}><span>or</span></div>
+            <div className={styles.authForm}>
+              <button
+                className={styles.submitAuthBtn}
+                style={{ marginBottom: '1rem', display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', color: '#000000' }}
+                onClick={() => signIn('google')}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                </svg>
+                Continue with Google
+              </button>
+              <button
+                className={styles.githubBtn}
+                style={{ width: '100%', padding: '0.85rem' }}
+                onClick={() => signIn('github')}
+              >
+                <Github size={18} /> Continue with GitHub
+              </button>
             </div>
-          </motion.div>
-        </div>
+          </div>
+        </motion.div>
       </div>
     )
   }
@@ -428,23 +329,12 @@ export default function Dashboard() {
         </div>
         <div className={styles.headerActions}>
           <XPShop xp={userStats.xp} streakFreezes={userStats.streakFreezes} onPurchase={fetchData} />
-          <motion.button whileTap={{ scale: 0.96 }} className={styles.goalBtn} onClick={() => setShowGoalModal(true)}><Target size={15} /> {goal ? `${goal.target} pg goal` : 'Set Goal'}</motion.button>
-          <motion.button whileTap={{ scale: 0.96 }} className="btn-primary" onClick={() => setShowAddBook(true)}><Plus size={15} /> Add Book</motion.button>
-          <motion.button whileTap={{ scale: 0.9 }} className={styles.iconBtn} onClick={() => setShowSettings(true)}><Settings size={17} /></motion.button>
-          <motion.button whileTap={{ scale: 0.9 }} className={styles.logoutBtn} onClick={() => signOut()}><LogOut size={17} /></motion.button>
+          <button className={styles.goalBtn} onClick={() => setShowGoalModal(true)}><Target size={15} /> {goal ? `${goal.target} pg goal` : 'Set Goal'}</button>
+          <button className="btn-primary" onClick={() => setShowAddBook(true)}><Plus size={15} /> Add Book</button>
+          <button className={styles.iconBtn} onClick={() => setShowSettings(true)}><Settings size={17} /></button>
+          <button className={styles.logoutBtn} onClick={() => signOut()}><LogOut size={17} /></button>
         </div>
       </motion.header>
-
-      {/* Mobile-only FAB — add book */}
-      <motion.button 
-        className={styles.mobileAddFAB} 
-        onClick={() => setShowAddBook(true)}
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        whileTap={{ scale: 0.9 }}
-      >
-        <Plus size={24} />
-      </motion.button>
 
       {/* Quote Area (Full Width) */}
       <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={styles.quoteArea}>
@@ -458,203 +348,199 @@ export default function Dashboard() {
       {/* Stats & Challenges Grid (2-column layout) */}
       <section className={styles.statsLayout}>
         <div className={styles.mainStats}>
-
-          {/* ---- HOME TAB: Stats Grid + Heatmap ---- */}
-          {/* On desktop always visible. On mobile only when mobileView === 'home' */}
-          <div style={undefined} className={mobileView !== 'home' ? styles.mobileHidden : undefined}>
-
-            <motion.section variants={cv} initial="hidden" animate="visible" className={styles.statsGrid}>
-              <motion.div variants={iv} className={`glass-card`}>
-                <div className={styles.statHeader}><TrendingUp size={17} color="var(--primary)" /><h3>Monthly Goal</h3></div>
-                {goal ? (<>
-                  <div className={styles.progressContainer}><motion.div initial={{ width: 0 }} animate={{ width: `${progressPercent}%` }} transition={{ duration: 1.5, ease: 'easeOut' }} className={styles.progressBar} /></div>
-                  <div className={styles.statFooter}><p className={styles.statDetail}><strong>{totalPagesRead}</strong> / {goal.target} pages</p><span className={styles.percentage}>{Math.round(progressPercent)}%</span></div>
-                  <ReadingChart data={insights.chartData} />
-                </>) : (
-                  <div className={styles.noGoal}><p>No goal set yet.</p><button className={styles.setGoalBtn} onClick={() => setShowGoalModal(true)}><Target size={13} /> Set Goal</button></div>
-                )}
-              </motion.div>
-
-              <motion.div variants={iv} className={`glass-card`}>
-                <div className={styles.statHeader}><Flame size={17} color="#ef4444" /><h3>Daily Streak</h3></div>
-                <p className={styles.bigStat}>{insights.streak} <span className={styles.smallText}>{insights.streak === 1 ? 'day' : 'days'}</span></p>
-                <div className={styles.streakIndicator}>{[...Array(7)].map((_, i) => <div key={i} className={styles.streakDot} active-dot={i < insights.streak % 7 ? 'true' : 'false'} />)}</div>
-                {userStats.streakFreezes > 0 && <div className="freeze-active-label"><Shield size={11} /> {userStats.streakFreezes} active</div>}
-              </motion.div>
-
-              <motion.div variants={iv} className={`glass-card`}>
-                <div className={styles.statHeader}><Trophy size={17} color="#f59e0b" /><h3>Achievements</h3></div>
-                <div className={styles.achievementGrid}>
-                  {Object.entries(ACHIEVEMENTS).slice(0, 4).map(([key, a]) => (
-                    <div key={key} className={`${styles.achBadge} ${unlockedTypes.has(key) ? styles.achUnlocked : styles.achLocked}`} title={a.desc}>
-                      <span className={styles.achEmoji}>{a.emoji}</span>
-                    </div>
-                  ))}
-                </div>
-                <button className={styles.viewMore} onClick={() => { setActiveTab('achievements'); setMobileView('library') }}>View All <ArrowRight size={12} /></button>
-              </motion.div>
-            </motion.section>
-
-            {/* Reading Heatmap */}
-            <ReadingCalendar sessions={sessions} />
-          </div>
-
-          {/* ---- LIBRARY TAB: Book tabs (reading / completed / achievements) ---- */}
-          <div className={mobileView !== 'library' ? styles.mobileHidden : undefined}>
-            {/* Tabs Navigation */}
-            <div className={styles.mainTabs}>
-              {([
-                { key: 'reading', icon: <BookMarked size={13} />, label: `Reading (${activeBooks.length})` },
-                { key: 'completed', icon: <CheckCircle size={13} />, label: `Completed (${completedBooks.length})` },
-                { key: 'achievements', icon: <Trophy size={13} />, label: 'Achievements' },
-              ] as const).map(t => (
-                <motion.button
-                  key={t.key}
-                  className={`${styles.mainTab} ${activeTab === t.key ? styles.activeMainTab : ''}`}
-                  onClick={() => setActiveTab(t.key)}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  {t.icon} {t.label}
-                </motion.button>
-              ))}
-            </div>
-
-            <div className={styles.tabContent}>
-              <AnimatePresence mode="wait">
-                {activeTab === 'reading' && (
-                  <motion.div key="reading" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.bookGrid}>
-                    {activeBooks.length > 0 ? activeBooks.map(book => (
-                      <motion.div key={book.id} layout whileHover={{ y: -5 }} className={`${styles.bookCard} glass-card`}>
-                        <div className={styles.bookMain}>
-                          {book.coverImage && (
-                            <div className={styles.bookCover}>
-                              <img src={book.coverImage} alt={book.title} />
-                            </div>
-                          )}
-                          <div className={styles.bookDetails}>
-                            <div className={styles.bookHeader}>
-                              <div className={styles.bookMeta}><h3>{book.title}</h3><p>by {book.author}</p></div>
-                              <div className={styles.bookActions}>
-                                <button className={styles.notesBtn} onClick={() => setNotesPanel({ bookId: book.id, bookTitle: book.title })} title="Notes"><StickyNote size={13} /></button>
-                                <button className={styles.deleteBtn} onClick={() => handleDeleteBook(book.id)}><Trash2 size={13} /></button>
-                              </div>
-                            </div>
-                            <div className={styles.progressLabel}><span>{book.currentPage} / {book.totalPages} pages</span><span>{Math.min(100, Math.round((book.currentPage / book.totalPages) * 100))}%</span></div>
-                            <div className={styles.miniProgress}><div className={styles.miniBar} style={{ width: `${Math.min(100, (book.currentPage / book.totalPages) * 100)}%` }} /></div>
-                            {getEstDaysToFinish(book) !== null && getEstDaysToFinish(book)! > 0 && (
-                              <div className={styles.estFinish}>
-                                <Clock size={11} /> <span>Est. {getEstDaysToFinish(book)} days left</span>
-                              </div>
-                            )}
-                            <div className={styles.logAction}>
-                              <div className={styles.inputWrapper}>
-                                <input type="number" placeholder="Pages read" className="input-field" value={logPages[book.id] || ''} onChange={e => setLogPages(p => ({ ...p, [book.id]: e.target.value }))} />
-                                <button className={styles.miniAddBtn} onClick={() => handleLogSession(book.id)}><PlusCircle size={16} /></button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )) : <div className={styles.empty}><BookOpen size={42} opacity={0.12} /><p>No books in progress.</p></div>}
-                  </motion.div>
-                )}
-
-                {activeTab === 'completed' && (
-                  <motion.div key="completed" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.bookGrid}>
-                    {completedBooks.length > 0 ? completedBooks.map(book => (
-                      <motion.div key={book.id} layout className={`${styles.bookCard} ${styles.completedCard} glass-card`}>
-                        <div className={styles.bookHeader}>
-                          <div className={styles.bookMeta}><h3>{book.title}</h3><p>by {book.author}</p></div>
-                          <div className={styles.completedBadge}><CheckCircle size={18} /></div>
-                        </div>
-                        <p className={styles.completedInfo}>{book.totalPages} pages · ✅ Finished</p>
-                        <div className={styles.starRow}>
-                          {[1, 2, 3, 4, 5].map(s => (
-                            <Star key={s} size={16} className={s <= (book.rating ?? 0) ? styles.starFilled : styles.starEmpty} />
-                          ))}
-                          {!book.rating && (
-                            <button className={styles.rateBtn} onClick={() => { setRatingModal({ bookId: book.id, bookTitle: book.title }); setPendingRating(0); setPendingReview('') }}>Rate it</button>
-                          )}
-                        </div>
-                        {book.review && <p className={styles.reviewText}>&ldquo;{book.review}&rdquo;</p>}
-                      </motion.div>
-                    )) : <div className={styles.empty}><Trophy size={42} opacity={0.12} /><p>No books completed yet.</p></div>}
-                  </motion.div>
-                )}
-
-                {activeTab === 'achievements' && (
-                  <motion.div key="achievements" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.achievementsFull}>
-                    {Object.entries(ACHIEVEMENTS).map(([key, a]) => {
-                      const done = unlockedTypes.has(key)
-                      return (
-                        <div key={key} className={`${styles.achCard} glass-card ${done ? styles.achCardUnlocked : ''}`}>
-                          <div className={styles.achCardEmoji}>{a.emoji}</div>
-                          <div><div className={styles.achCardLabel}>{a.label}</div><div className={styles.achCardDesc}>{a.desc}</div></div>
-                          <div className={`${styles.achStatus} ${done ? styles.achStatusDone : ''}`}>{done ? <CheckCircle size={16} /> : <Shield size={16} />}</div>
-                        </div>
-                      )
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-
-          {/* ---- ACTIVITY TAB: Session log ---- */}
-          <div className={mobileView !== 'activity' ? styles.mobileHidden : undefined}>
-            <motion.div key="activity" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={styles.activityList}>
-              {sessions.length > 0 ? sessions.map(s => (
-                <div key={s.id} className={`${styles.activityItem} glass-card`}>
-                  <div className={styles.activityIcon}><BookOpen size={15} color="var(--primary)" /></div>
-                  <div className={styles.activityInfo}>
-                    <p className={styles.activityTitle}><strong>{s.pagesRead} pages</strong> in <em>{s.book?.title}</em></p>
-                    <p className={styles.activityMeta}>{new Date(s.date).toLocaleDateString()}</p>
-                  </div>
-                  <div className={styles.activityXp}>+10 XP</div>
-                </div>
-              )) : <div className={styles.empty}><Clock size={42} opacity={0.12} /><p>No sessions logged yet.</p></div>}
+          <motion.section variants={cv} initial="hidden" animate="visible" className={styles.statsGrid}>
+            <motion.div variants={iv} className="glass-card">
+              <div className={styles.statHeader}><TrendingUp size={17} color="var(--primary)" /><h3>Monthly Goal</h3></div>
+              {goal ? (<>
+                <div className={styles.progressContainer}><motion.div initial={{ width: 0 }} animate={{ width: `${progressPercent}%` }} transition={{ duration: 1.5, ease: 'easeOut' }} className={styles.progressBar} /></div>
+                <div className={styles.statFooter}><p className={styles.statDetail}><strong>{totalPagesRead}</strong> / {goal.target} pages</p><span className={styles.percentage}>{Math.round(progressPercent)}%</span></div>
+                <ReadingChart data={insights.chartData} />
+              </>) : (
+                <div className={styles.noGoal}><p>No goal set yet.</p><button className={styles.setGoalBtn} onClick={() => setShowGoalModal(true)}><Target size={13} /> Set Goal</button></div>
+              )}
             </motion.div>
-          </div>
 
-          {/* ---- DISCOVER TAB (mobile-only panel, mirrors the aside) ---- */}
-          <div className={`${styles.mobileDiscoverPane} ${mobileView !== 'discover' ? styles.mobileHidden : ''}`}>
-            <ChallengePanel challenges={challenges} />
-            <motion.section variants={cv} initial="hidden" animate="visible" className={styles.discovery}>
-              <div className={styles.sectionHeader}><Sparkles size={17} color="var(--primary-glow)" /><h2>Discovery</h2></div>
-              <div className={styles.categoryTabs}>
-                {Object.keys(TOP_BOOKS).map(cat => (
-                  <button key={cat} className={`${styles.tab} ${activeCategory === cat ? styles.activeTab : ''}`} onClick={() => setActiveCategory(cat as Category)}>
-                    {cat.charAt(0) + cat.slice(1).toLowerCase()}
-                  </button>
+            <motion.div variants={iv} className="glass-card">
+              <div className={styles.statHeader}><Flame size={17} color="#ef4444" /><h3>Daily Streak</h3></div>
+              <p className={styles.bigStat}>{insights.streak} <span className={styles.smallText}>{insights.streak === 1 ? 'day' : 'days'}</span></p>
+              <div className={styles.streakIndicator}>{[...Array(7)].map((_, i) => <div key={i} className={styles.streakDot} active-dot={i < insights.streak % 7 ? 'true' : 'false'} />)}</div>
+              {userStats.streakFreezes > 0 && <div className="freeze-active-label"><Shield size={11} /> {userStats.streakFreezes} active</div>}
+            </motion.div>
+
+            <motion.div variants={iv} className="glass-card">
+              <div className={styles.statHeader}><Trophy size={17} color="#f59e0b" /><h3>Achievements</h3></div>
+              <div className={styles.achievementGrid}>
+                {Object.entries(ACHIEVEMENTS).slice(0, 4).map(([key, a]) => (
+                  <div key={key} className={`${styles.achBadge} ${unlockedTypes.has(key) ? styles.achUnlocked : styles.achLocked}`} title={a.desc}>
+                    <span className={styles.achEmoji}>{a.emoji}</span>
+                  </div>
                 ))}
               </div>
-              <AnimatePresence mode="wait">
-                <motion.div key={activeCategory} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.discoveryList}>
-                  {TOP_BOOKS[activeCategory].map((book, idx) => (
-                    <div key={idx} className={`${styles.discoveryCard} glass-card`}>
-                      <div className={styles.cardHeader}>
-                        <span className={styles.rank}>{idx + 1}</span>
-                        <div className={styles.discoveryMeta}><h3>{book.title}</h3><p className={styles.author}>{book.author}</p></div>
-                      </div>
-                      <button className={styles.addSuggested} onClick={() => handleAddBook(null, { title: book.title, author: book.author, totalPages: '300' })}>
-                        <Plus size={11} /> Add
-                      </button>
-                    </div>
-                  ))}
-                </motion.div>
-              </AnimatePresence>
-            </motion.section>
+              <button className={styles.viewMore} onClick={() => setActiveTab('achievements')}>View All <ArrowRight size={12} /></button>
+            </motion.div>
+          </motion.section>
+
+          {/* Reading Heatmap */}
+          <ReadingCalendar sessions={sessions} />
+
+          {/* Tabs Navigation */}
+          <div className={styles.mainTabs} ref={tabsRef}>
+            {([
+              { key: 'reading', icon: <BookMarked size={13} />, label: `Reading (${activeBooks.length})` },
+              { key: 'completed', icon: <CheckCircle size={13} />, label: `Completed (${completedBooks.length})` },
+              { key: 'activity', icon: <Clock size={13} />, label: 'Activity' },
+              { key: 'achievements', icon: <Trophy size={13} />, label: 'Achievements' },
+            ] as const).map(t => (
+              <button key={t.key} className={`${styles.mainTab} ${activeTab === t.key ? styles.activeMainTab : ''}`} onClick={() => setActiveTab(t.key)}>
+                {t.icon} {t.label}
+              </button>
+            ))}
           </div>
 
+          <div className={styles.tabContent}>
+            <AnimatePresence mode="wait">
+              {activeTab === 'reading' && (() => {
+                  const sortedBooks = [...activeBooks].sort((a, b) => {
+                    if (librarySortOrder === 'title') return a.title.localeCompare(b.title)
+                    if (librarySortOrder === 'progress') {
+                      const pA = a.currentPage / a.totalPages
+                      const pB = b.currentPage / b.totalPages
+                      return pB - pA
+                    }
+                    return 0
+                  })
+                  return (
+                    <motion.div key="reading" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.libraryContainer}>
+                      {activeBooks.length > 0 && (
+                        <div className={styles.libraryToolbar}>
+                          <select
+                            className={styles.sortSelect}
+                            value={librarySortOrder}
+                            onChange={(e) => setLibrarySortOrder(e.target.value as any)}
+                          >
+                            <option value="recent">Recently Added</option>
+                            <option value="progress">Highest Progress</option>
+                            <option value="title">Title (A-Z)</option>
+                          </select>
+                          <div className={styles.viewToggles}>
+                            <button
+                              className={`${styles.viewToggleBtn} ${libraryViewMode === 'grid' ? styles.activeViewToggle : ''}`}
+                              onClick={() => setLibraryViewMode('grid')}
+                              title="Grid View"
+                            >
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', width: '14px', height: '14px' }}>
+                                <div style={{ background: 'currentColor', borderRadius: '1px' }} />
+                                <div style={{ background: 'currentColor', borderRadius: '1px' }} />
+                                <div style={{ background: 'currentColor', borderRadius: '1px' }} />
+                                <div style={{ background: 'currentColor', borderRadius: '1px' }} />
+                              </div>
+                            </button>
+                            <button
+                              className={`${styles.viewToggleBtn} ${libraryViewMode === 'list' ? styles.activeViewToggle : ''}`}
+                              onClick={() => setLibraryViewMode('list')}
+                              title="List View"
+                            >
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '14px', height: '14px', justifyContent: 'center' }}>
+                                <div style={{ background: 'currentColor', height: '2px', borderRadius: '1px' }} />
+                                <div style={{ background: 'currentColor', height: '2px', borderRadius: '1px' }} />
+                                <div style={{ background: 'currentColor', height: '2px', borderRadius: '1px' }} />
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <div className={libraryViewMode === 'list' ? styles.bookList : styles.bookGrid}>
+                        {sortedBooks.length > 0 ? sortedBooks.map(book => (
+                          <motion.div key={book.id} layout whileHover={{ y: -5 }} className={`${styles.bookCard} glass-card`}>
+                            <div className={styles.bookMain}>
+                              {book.coverImage && (
+                                <div className={styles.bookCover}>
+                                  <img src={book.coverImage} alt={book.title} />
+                                </div>
+                              )}
+                              <div className={styles.bookDetails}>
+                                <div className={styles.bookHeader}>
+                                  <div className={styles.bookMeta}><h3>{book.title}</h3><p>by {book.author}</p></div>
+                                  <div className={styles.bookActions}>
+                                    <button className={styles.notesBtn} onClick={() => setNotesPanel({ bookId: book.id, bookTitle: book.title })} title="Notes"><StickyNote size={13} /></button>
+                                    <button className={styles.deleteBtn} onClick={() => handleDeleteBook(book.id)}><Trash2 size={13} /></button>
+                                  </div>
+                                </div>
+                                <div className={styles.progressLabel}><span>{book.currentPage} / {book.totalPages} pages</span><span>{Math.min(100, Math.round((book.currentPage / book.totalPages) * 100))}%</span></div>
+                                <div className={styles.miniProgress}><div className={styles.miniBar} style={{ width: `${Math.min(100, (book.currentPage / book.totalPages) * 100)}%` }} /></div>
+                                {getEstDaysToFinish(book) !== null && getEstDaysToFinish(book)! > 0 && (
+                                  <div className={styles.estFinish}>
+                                    <Clock size={11} /> <span>Est. {getEstDaysToFinish(book)} days left</span>
+                                  </div>
+                                )}
+                                <div className={styles.logAction}>
+                                  <div className={styles.inputWrapper}>
+                                    <input type="number" placeholder="Pages" className="input-field" value={logPages[book.id] || ''} onChange={e => setLogPages(p => ({ ...p, [book.id]: e.target.value }))} />
+                                    <button className={styles.miniAddBtn} onClick={() => handleLogSession(book.id)}><PlusCircle size={16} /></button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )) : <div className={styles.empty}><BookOpen size={42} opacity={0.12} /><p>No books in progress.</p></div>}
+                      </div>
+                    </motion.div>
+                  )
+                })()}
+
+              {activeTab === 'completed' && (
+                <motion.div key="completed" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.bookGrid}>
+                  {completedBooks.length > 0 ? completedBooks.map(book => (
+                    <motion.div key={book.id} layout className={`${styles.bookCard} ${styles.completedCard} glass-card`}>
+                      <div className={styles.bookHeader}>
+                        <div className={styles.bookMeta}><h3>{book.title}</h3><p>by {book.author}</p></div>
+                        <div className={styles.completedBadge}><CheckCircle size={18} /></div>
+                      </div>
+                      <p className={styles.completedInfo}>{book.totalPages} pages · ✅ Finished</p>
+                    </motion.div>
+                  )) : <div className={styles.empty}><Trophy size={42} opacity={0.12} /><p>No books completed yet.</p></div>}
+                </motion.div>
+              )}
+
+              {activeTab === 'activity' && (
+                <motion.div key="activity" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.activityList}>
+                  {sessions.length > 0 ? sessions.map((s, i) => (
+                    <div key={s.id} className={`${styles.activityItem} glass-card`}>
+                      <div className={styles.activityIcon}><BookOpen size={15} color="var(--primary)" /></div>
+                      <div className={styles.activityInfo}>
+                        <p className={styles.activityTitle}><strong>{s.pagesRead} pages</strong> in <em>{s.book?.title}</em></p>
+                        <p className={styles.activityMeta}>{new Date(s.date).toLocaleDateString()}</p>
+                      </div>
+                      <div className={styles.activityXp}>+10 XP</div>
+                    </div>
+                  )) : <div className={styles.empty}><Clock size={42} opacity={0.12} /><p>No sessions logged yet.</p></div>}
+                </motion.div>
+              )}
+
+              {activeTab === 'achievements' && (
+                <motion.div key="achievements" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.achievementsFull}>
+                  {Object.entries(ACHIEVEMENTS).map(([key, a]) => {
+                    const done = unlockedTypes.has(key)
+                    return (
+                      <div key={key} className={`${styles.achCard} glass-card ${done ? styles.achCardUnlocked : ''}`}>
+                        <div className={styles.achCardEmoji}>{a.emoji}</div>
+                        <div><div className={styles.achCardLabel}>{a.label}</div><div className={styles.achCardDesc}>{a.desc}</div></div>
+                        <div className={`${styles.achStatus} ${done ? styles.achStatusDone : ''}`}>{done ? <CheckCircle size={16} /> : <Shield size={16} />}</div>
+                      </div>
+                    )
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
-        {/* Desktop sidebar — hidden on mobile via CSS */}
         <aside className={styles.sideStats}>
           <ChallengePanel challenges={challenges} />
 
           {/* Discovery Sidebar */}
-          <motion.section variants={cv} initial="hidden" animate="visible" className={styles.discovery}>
-            <div className={styles.sectionHeader}><Sparkles size={17} color="var(--primary-glow)" /><h2>Discovery</h2></div>
+          <motion.section initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className={styles.discovery}>
+            <div className={styles.sectionHeader}><Search size={18} color="var(--primary)" /><h2>Discovery</h2></div>
             <div className={styles.categoryTabs}>
               {Object.keys(TOP_BOOKS).map(cat => (
                 <button key={cat} className={`${styles.tab} ${activeCategory === cat ? styles.activeTab : ''}`} onClick={() => setActiveCategory(cat as Category)}>
@@ -682,7 +568,6 @@ export default function Dashboard() {
       </section>
 
       {/* MODALS */}
-
       <AnimatePresence>
         {showAddBook && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={styles.modalOverlay}>
@@ -790,116 +675,17 @@ export default function Dashboard() {
       </AnimatePresence>
 
       <ReadingTimer books={books} onSessionLogged={fetchData} />
-      
-      {/* Mobile bottom nav safe-area spacer */}
-      <div className={styles.mobileSpacer} />
       <BookNotes bookId={notesPanel?.bookId || ''} bookTitle={notesPanel?.bookTitle || ''} isOpen={!!notesPanel} onClose={() => setNotesPanel(null)} />
-
-      {/* ===== RATING MODAL ===== */}
-      <AnimatePresence>
-        {ratingModal && (
-          <motion.div className={styles.modalOverlay} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setRatingModal(null)}>
-            <motion.div className={`${styles.modal} glass-card`} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} onClick={e => e.stopPropagation()}>
-              <div className={styles.modalHeader}>
-                <h3>Rate &ldquo;{ratingModal.bookTitle}&rdquo;</h3>
-                <button onClick={() => setRatingModal(null)} className={styles.closeBtn}><X size={18} /></button>
-              </div>
-              <div className={styles.starPickerRow}>
-                {[1, 2, 3, 4, 5].map(s => (
-                  <button key={s} onClick={() => setPendingRating(s)} className={s <= pendingRating ? styles.starFilled : styles.starEmpty}>
-                    <Star size={32} fill={s <= pendingRating ? 'currentColor' : 'none'} />
-                  </button>
-                ))}
-              </div>
-              <textarea
-                className={styles.reviewInput}
-                placeholder="Write a short review (optional)..."
-                value={pendingReview}
-                onChange={e => setPendingReview(e.target.value)}
-                rows={3}
-              />
-              <div className={styles.modalActions}>
-                <button className={styles.cancelBtn} onClick={() => setRatingModal(null)}>Cancel</button>
-                <button className="btn-primary" onClick={handleSaveRating} disabled={pendingRating === 0}>Save Rating</button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ===== ONBOARDING WIZARD ===== */}
-      <AnimatePresence>
-        {onboarding && (
-          <motion.div className={styles.modalOverlay} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div className={`${styles.modal} ${styles.onboardingModal} glass-card`} initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }}>
-              {/* Progress dots */}
-              <div className={styles.onboardingDots}>
-                {[1, 2, 3].map(i => <div key={i} className={`${styles.onboardingDot} ${onboarding.step >= i ? styles.onboardingDotActive : ''}`} />)}
-              </div>
-
-              {onboarding.step === 1 && (
-                <div className={styles.onboardingStep}>
-                  <div className={styles.onboardingEmoji}>📚</div>
-                  <h2>Welcome to ReaderVerse!</h2>
-                  <p>Your personal reading sanctuary. Track pages, earn XP, build streaks — and level up as a reader.</p>
-                  <ul className={styles.onboardingFeatures}>
-                    <li><Zap size={14} color="var(--warning)" /> Earn XP for every page you read</li>
-                    <li><Flame size={14} color="#f97316" /> Build daily reading streaks</li>
-                    <li><Trophy size={14} color="var(--primary-glow)" /> Unlock achievements &amp; level up</li>
-                    <li><Brain size={14} color="var(--secondary)" /> Chat with your AI reading buddy</li>
-                  </ul>
-                  <button className="btn-primary" onClick={() => dismissOnboarding(2)}>Get Started <ArrowRight size={15} /></button>
-                </div>
-              )}
-
-              {onboarding.step === 2 && (
-                <div className={styles.onboardingStep}>
-                  <div className={styles.onboardingEmoji}>➕</div>
-                  <h2>Add Your First Book</h2>
-                  <p>Start building your library. You can search by title or add any book manually.</p>
-                  <div className={styles.modalActions} style={{ flexDirection: 'column', gap: '0.75rem' }}>
-                    <button className="btn-primary" onClick={() => { dismissOnboarding(); setShowAddBook(true) }}>Add a Book Now <ArrowRight size={15} /></button>
-                    <button className={styles.cancelBtn} onClick={() => dismissOnboarding(3)}>Skip for now</button>
-                  </div>
-                </div>
-              )}
-
-              {onboarding.step === 3 && (
-                <div className={styles.onboardingStep}>
-                  <div className={styles.onboardingEmoji}>🎯</div>
-                  <h2>Set a Monthly Goal</h2>
-                  <p>Goals keep you consistent. Set a monthly page target and track your progress.</p>
-                  <div className={styles.modalActions} style={{ flexDirection: 'column', gap: '0.75rem' }}>
-                    <button className="btn-primary" onClick={() => { dismissOnboarding(); setShowGoalModal(true) }}>Set My Goal <ArrowRight size={15} /></button>
-                    <button className={styles.cancelBtn} onClick={() => dismissOnboarding()}>Maybe Later</button>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ===== MOBILE BOTTOM NAVIGATION ===== */}
-      <nav className={styles.mobileNavBar}>
-        {([
-          { key: 'home',     icon: <Home size={22} />,     label: 'Home' },
-          { key: 'library',  icon: <BookOpen size={22} />, label: 'Library' },
-          { key: 'activity', icon: <Activity size={22} />, label: 'Activity' },
-          { key: 'discover', icon: <Compass size={22} />,  label: 'Discover' },
-        ] as const).map(tab => (
-          <button
-            key={tab.key}
-            className={`${styles.mobileNavTab} ${mobileView === tab.key ? styles.mobileNavTabActive : ''}`}
-            onClick={() => setMobileView(tab.key)}
-          >
-            {tab.icon}
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </nav>
-
+      
+      {/* Mobile Bottom Navigation */}
+      <MobileNav 
+        activeTab={activeTab}
+        onHomeClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        onLibraryClick={() => { setActiveTab('reading'); tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+        onActivityClick={() => { setActiveTab('activity'); tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+        onAddClick={() => setShowAddBook(true)}
+        onShopClick={() => { document.getElementById('shop-trigger-btn')?.click() }}
+      />
     </main>
   )
 }
-

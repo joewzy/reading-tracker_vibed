@@ -104,12 +104,14 @@ button {
 @media (max-width: 768px) {
   .container {
     padding: 1rem;
+    padding-bottom: 10rem;
   }
 }
 
 @media (max-width: 480px) {
   .container {
     padding: 0.75rem;
+    padding-bottom: 10rem;
   }
 }
 
@@ -531,7 +533,26 @@ h3 {
   background: rgba(239, 68, 68, .08);
 }
 
-/* ===== READING CALENDAR ===== */
+/* ===== RESPONSIVE UTILITIES ===== */
+.desktop-only {
+  display: block !important;
+}
+
+.mobile-only, .mobile-only-flex {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+  .mobile-only {
+    display: block !important;
+  }
+  .mobile-only-flex {
+    display: flex !important;
+  }
+}
 .calendar-section {
   margin-bottom: 2.5rem;
 }
