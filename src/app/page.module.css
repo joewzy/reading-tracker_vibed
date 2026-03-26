@@ -497,6 +497,7 @@
     transition: var(--transition);
     position: relative;
     overflow: hidden;
+    background: rgba(15, 23, 42, 0.96); /* Darkened to prevent swipe actions bleeding through */
 }
 
 .bookMain {

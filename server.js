@@ -28,9 +28,9 @@ app.prepare().then(() => {
     createServer((req, res) => {
         const parsedUrl = parse(req.url, true)
         handle(req, res, parsedUrl)
-    }).listen(3000, (err) => {
+    }).listen(4200, (err) => {
         if (err) throw err
-        console.log('> ReaderVerse ready on http://localhost:3000')
+        console.log('> ReaderVerse ready on http://localhost:4200')
         console.log('> Email notifications: 6:00 AM (morning) | 6:00 PM (evening)')
 
         // 6:00 AM every day — Morning reminder

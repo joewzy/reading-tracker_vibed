@@ -4,7 +4,7 @@
   --secondary: #10b981;
   --secondary-glow: #34d399;
   --bg: #020617;
-  --card-bg: rgba(15, 23, 42, 0.4);
+  --card-bg: rgba(15, 23, 42, 0.8);
   --glass-border: rgba(255, 255, 255, 0.05);
   --glass-highlight: rgba(255, 255, 255, 0.02);
   --shadow-color: rgba(0, 0, 0, 0.4);
@@ -187,7 +187,7 @@ h3 {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), #6d28d9);
+  background: linear-gradient(135deg, var(--primary), rgb(109, 40, 217));
   color: #fff;
   display: flex;
   align-items: center;
@@ -538,7 +538,8 @@ h3 {
   display: block !important;
 }
 
-.mobile-only, .mobile-only-flex {
+.mobile-only,
+.mobile-only-flex {
   display: none !important;
 }
 
@@ -546,13 +547,16 @@ h3 {
   .desktop-only {
     display: none !important;
   }
+
   .mobile-only {
     display: block !important;
   }
+
   .mobile-only-flex {
     display: flex !important;
   }
 }
+
 .calendar-section {
   margin-bottom: 2.5rem;
 }

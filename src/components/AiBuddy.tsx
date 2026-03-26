@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, X, Bot, Sparkles, Loader2 } from 'lucide-react'
+import { Send, X, Bot, Sparkles, Loader2, Mic } from 'lucide-react'
 import styles from './AiBuddy.module.css'
 
 interface AiBuddyProps {
@@ -14,6 +14,7 @@ interface AiBuddyProps {
 export default function AiBuddy({ bookId, bookTitle, bookAuthor }: AiBuddyProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [message, setMessage] = useState('')
+    const [isListening, setIsListening] = useState(false)
     const [chat, setChat] = useState<{ role: 'user' | 'ai'; content: string }[]>([
         { role: 'ai', content: `Greetings! I'm your Reading Buddy. I've been looking over your notes for *${bookTitle}*. How can I assist your journey today?` }
     ])
@@ -25,6 +26,28 @@ export default function AiBuddy({ bookId, bookTitle, bookAuthor }: AiBuddyProps)
     }
 
     useEffect(scrollToBottom, [chat])
+
+    const startListening = () => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+        if (!SpeechRecognition) {
+            alert('Voice dictation is not supported in this browser.')
+            return
+        }
+        
+        const recognition = new SpeechRecognition()
+        recognition.continuous = false
+        recognition.interimResults = false
+
+        recognition.onstart = () => setIsListening(true)
+        recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript
+            setMessage(prev => prev + (prev ? ' ' : '') + transcript)
+        }
+        recognition.onerror = () => setIsListening(false)
+        recognition.onend = () => setIsListening(false)
+
+        recognition.start()
+    }
 
     const handleSend = async () => {
         if (!message.trim() || isLoading) return
@@ -107,6 +130,13 @@ export default function AiBuddy({ bookId, bookTitle, bookAuthor }: AiBuddyProps)
                                 onChange={e => setMessage(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && handleSend()}
                             />
+                            <button 
+                                onClick={isListening ? undefined : startListening} 
+                                className={`${styles.micBtn} ${isListening ? styles.listening : ''}`}
+                                title="Dictate"
+                            >
+                                <Mic size={18} />
+                            </button>
                             <button onClick={handleSend} disabled={isLoading || !message.trim()} className={styles.sendBtn}>
                                 <Send size={18} />
                             </button>

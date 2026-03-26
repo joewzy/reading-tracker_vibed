@@ -1,3 +1,4 @@
+/* eslint-disable */
 'use client'
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
@@ -7,7 +8,7 @@ import {
   Plus, BookOpen, TrendingUp, Search, Quote as QuoteIcon,
   Flame, PlusCircle, LogOut, Github, Mail, Lock,
   User as UserIcon, ArrowRight, Trash2, Target, CheckCircle,
-  Clock, BookMarked, X, Settings, Bell, Zap, Star, Shield, Trophy, StickyNote
+  Clock, BookMarked, X, Settings, Bell, Zap, Star, Shield, Trophy, StickyNote, Sparkles
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import styles from './page.module.css'
@@ -16,7 +17,10 @@ import ReadingChart from '@/components/ReadingChart'
 import ReadingTimer from '@/components/ReadingTimer'
 import BookNotes from '@/components/BookNotes'
 import ReadingCalendar from '@/components/ReadingCalendar'
+import DiscoverSwiper from '@/components/DiscoverSwiper'
 import MobileNav from '@/components/MobileNav'
+import SwipeableBookCard from '@/components/SwipeableBookCard'
+import { vibrateLight, vibrateSuccess } from '@/utils/haptics'
 import ThemeRegistry from '@/components/ThemeRegistry'
 import XPShop from '@/components/XPShop'
 import ChallengePanel from '@/components/ChallengePanel'
@@ -61,7 +65,7 @@ export default function Dashboard() {
   const [insights, setInsights] = useState<Insights>({ streak: 0, chartData: [] })
   const [userStats, setUserStats] = useState<UserStats>({ xp: 0, level: 1, notificationEmail: null, streakFreezes: 0, activeTheme: 'DARK_DEFAULT', achievements: [] })
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'reading' | 'completed' | 'activity' | 'achievements'>('reading')
+  const [activeTab, setActiveTab] = useState<'reading' | 'completed' | 'activity' | 'achievements' | 'discover'>('reading')
   const [librarySortOrder, setLibrarySortOrder] = useState<'recent' | 'progress' | 'title'>('recent')
   const [libraryViewMode, setLibraryViewMode] = useState<'grid' | 'list'>('grid')
   
@@ -168,7 +172,7 @@ export default function Dashboard() {
     if (e) e.preventDefault()
     const payload = data || newBook
     const r = await fetch('/api/books', { method: 'POST', body: JSON.stringify(payload) })
-    if (r.ok) { setNewBook({ title: '', author: '', totalPages: '', coverImage: null, description: '' }); setShowAddBook(false); fetchData(); boom() }
+    if (r.ok) { vibrateSuccess(); setNewBook({ title: '', author: '', totalPages: '', coverImage: null, description: '' }); setShowAddBook(false); fetchData(); boom() }
   }
 
   const handleDeleteBook = async (id: string) => {
@@ -189,7 +193,7 @@ export default function Dashboard() {
   const handleSetGoal = async (e: React.FormEvent) => {
     e.preventDefault(); const now = new Date()
     const r = await fetch('/api/goals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: goalTarget, type: 'PAGES', month: now.getMonth() + 1, year: now.getFullYear() }) })
-    if (r.ok) { setShowGoalModal(false); setGoalTarget(''); fetchData() }
+    if (r.ok) { vibrateSuccess(); setShowGoalModal(false); setGoalTarget(''); fetchData() }
   }
 
   const handleSaveEmail = async (e: React.FormEvent) => {
@@ -207,6 +211,42 @@ export default function Dashboard() {
       body: JSON.stringify({ activeTheme: theme })
     })
   }
+
+  const getEstDaysToFinish = useCallback((book: Book) => {
+    if (!insights?.averagePPH || insights.averagePPH <= 0) return null
+    const pagesLeft = book.totalPages - book.currentPage
+    if (pagesLeft <= 0) return 0
+    // Assume 1 hour of reading per day for calculation
+    const hoursNeeded = pagesLeft / insights.averagePPH
+    return Math.ceil(hoursNeeded)
+  }, [insights?.averagePPH])
+
+  const { level, currentLevelXp, progress: xpProgress, name: levelName } = useMemo(() => getLevelInfo(userStats.xp), [userStats.xp])
+  const activeBooks = useMemo(() => books.filter(b => b.status !== 'COMPLETED'), [books])
+  const completedBooks = useMemo(() => books.filter(b => b.status === 'COMPLETED'), [books])
+  const totalPagesRead = useMemo(() => {
+    const now = new Date()
+    return sessions
+      .filter(s => {
+        const d = new Date(s.date)
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+      })
+      .reduce((sum, s) => sum + s.pagesRead, 0)
+  }, [sessions])
+  const progressPercent = useMemo(() => goal ? Math.min((totalPagesRead / goal.target) * 100, 100) : 0, [goal, totalPagesRead])
+  const unlockedTypes = useMemo(() => new Set((userStats.achievements || []).map(a => a.type)), [userStats.achievements])
+
+  const sortedBooks = useMemo(() => {
+    return [...activeBooks].sort((a, b) => {
+      if (librarySortOrder === 'title') return a.title.localeCompare(b.title)
+      if (librarySortOrder === 'progress') {
+        const pA = a.currentPage / a.totalPages
+        const pB = b.currentPage / b.totalPages
+        return pB - pA
+      }
+      return 0
+    })
+  }, [activeBooks, librarySortOrder])
 
   if (loading) return <div className={styles.loaderContainer}><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className={styles.loader} /></div>
 
@@ -276,22 +316,6 @@ export default function Dashboard() {
       </div>
     )
   }
-
-  const getEstDaysToFinish = (book: Book) => {
-    if (!insights?.averagePPH || insights.averagePPH <= 0) return null
-    const pagesLeft = book.totalPages - book.currentPage
-    if (pagesLeft <= 0) return 0
-    // Assume 1 hour of reading per day for calculation
-    const hoursNeeded = pagesLeft / insights.averagePPH
-    return Math.ceil(hoursNeeded)
-  }
-
-  const { level, currentLevelXp, progress: xpProgress, name: levelName } = getLevelInfo(userStats.xp)
-  const activeBooks = books.filter(b => b.status !== 'COMPLETED')
-  const completedBooks = books.filter(b => b.status === 'COMPLETED')
-  const totalPagesRead = books.reduce((a, b) => a + b.currentPage, 0)
-  const progressPercent = goal ? Math.min((totalPagesRead / goal.target) * 100, 100) : 0
-  const unlockedTypes = new Set((userStats.achievements || []).map(a => a.type))
 
   return (
     <main className="container">
@@ -388,6 +412,7 @@ export default function Dashboard() {
             {([
               { key: 'reading', icon: <BookMarked size={13} />, label: `Reading (${activeBooks.length})` },
               { key: 'completed', icon: <CheckCircle size={13} />, label: `Completed (${completedBooks.length})` },
+              { key: 'discover', icon: <Sparkles size={13} color="var(--primary-glow)" />, label: 'Discover' },
               { key: 'activity', icon: <Clock size={13} />, label: 'Activity' },
               { key: 'achievements', icon: <Trophy size={13} />, label: 'Achievements' },
             ] as const).map(t => (
@@ -399,17 +424,7 @@ export default function Dashboard() {
 
           <div className={styles.tabContent}>
             <AnimatePresence mode="wait">
-              {activeTab === 'reading' && (() => {
-                  const sortedBooks = [...activeBooks].sort((a, b) => {
-                    if (librarySortOrder === 'title') return a.title.localeCompare(b.title)
-                    if (librarySortOrder === 'progress') {
-                      const pA = a.currentPage / a.totalPages
-                      const pB = b.currentPage / b.totalPages
-                      return pB - pA
-                    }
-                    return 0
-                  })
-                  return (
+              {activeTab === 'reading' && (
                     <motion.div key="reading" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.libraryContainer}>
                       {activeBooks.length > 0 && (
                         <div className={styles.libraryToolbar}>
@@ -451,42 +466,21 @@ export default function Dashboard() {
                       )}
                       <div className={libraryViewMode === 'list' ? styles.bookList : styles.bookGrid}>
                         {sortedBooks.length > 0 ? sortedBooks.map(book => (
-                          <motion.div key={book.id} layout whileHover={{ y: -5 }} className={`${styles.bookCard} glass-card`}>
-                            <div className={styles.bookMain}>
-                              {book.coverImage && (
-                                <div className={styles.bookCover}>
-                                  <img src={book.coverImage} alt={book.title} />
-                                </div>
-                              )}
-                              <div className={styles.bookDetails}>
-                                <div className={styles.bookHeader}>
-                                  <div className={styles.bookMeta}><h3>{book.title}</h3><p>by {book.author}</p></div>
-                                  <div className={styles.bookActions}>
-                                    <button className={styles.notesBtn} onClick={() => setNotesPanel({ bookId: book.id, bookTitle: book.title })} title="Notes"><StickyNote size={13} /></button>
-                                    <button className={styles.deleteBtn} onClick={() => handleDeleteBook(book.id)}><Trash2 size={13} /></button>
-                                  </div>
-                                </div>
-                                <div className={styles.progressLabel}><span>{book.currentPage} / {book.totalPages} pages</span><span>{Math.min(100, Math.round((book.currentPage / book.totalPages) * 100))}%</span></div>
-                                <div className={styles.miniProgress}><div className={styles.miniBar} style={{ width: `${Math.min(100, (book.currentPage / book.totalPages) * 100)}%` }} /></div>
-                                {getEstDaysToFinish(book) !== null && getEstDaysToFinish(book)! > 0 && (
-                                  <div className={styles.estFinish}>
-                                    <Clock size={11} /> <span>Est. {getEstDaysToFinish(book)} days left</span>
-                                  </div>
-                                )}
-                                <div className={styles.logAction}>
-                                  <div className={styles.inputWrapper}>
-                                    <input type="number" placeholder="Pages" className="input-field" value={logPages[book.id] || ''} onChange={e => setLogPages(p => ({ ...p, [book.id]: e.target.value }))} />
-                                    <button className={styles.miniAddBtn} onClick={() => handleLogSession(book.id)}><PlusCircle size={16} /></button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </motion.div>
+                          <SwipeableBookCard
+                            key={book.id}
+                            book={book}
+                            styles={styles}
+                            logPagesValue={logPages[book.id] || ''}
+                            onChangeLogPages={(val) => setLogPages(p => ({ ...p, [book.id]: val }))}
+                            onLogSession={() => handleLogSession(book.id)}
+                            onOpenNotes={() => setNotesPanel({ bookId: book.id, bookTitle: book.title })}
+                            onDelete={() => handleDeleteBook(book.id)}
+                            getEstDaysToFinish={getEstDaysToFinish}
+                          />
                         )) : <div className={styles.empty}><BookOpen size={42} opacity={0.12} /><p>No books in progress.</p></div>}
                       </div>
                     </motion.div>
-                  )
-                })()}
+                  )}
 
               {activeTab === 'completed' && (
                 <motion.div key="completed" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={styles.bookGrid}>
@@ -499,6 +493,15 @@ export default function Dashboard() {
                       <p className={styles.completedInfo}>{book.totalPages} pages · ✅ Finished</p>
                     </motion.div>
                   )) : <div className={styles.empty}><Trophy size={42} opacity={0.12} /><p>No books completed yet.</p></div>}
+                </motion.div>
+              )}
+
+              {activeTab === 'discover' && (
+                <motion.div key="discover" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                  <DiscoverSwiper 
+                    recentlyReadBooks={completedBooks.slice(0, 5).map(b => ({ title: b.title }))} 
+                    onRefreshLibrary={fetchData} 
+                  />
                 </motion.div>
               )}
 

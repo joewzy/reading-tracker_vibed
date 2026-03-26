@@ -1,12 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
+
+export const viewport: Viewport = {
+  themeColor: "#8b5cf6",
+};
 
 export const metadata: Metadata = {
   title: "ReaderVerse — Track Your Reading Journey",
   description: "Earn XP for every page you read. Track books, build streaks, and curate your intellectual legacy.",
   manifest: "/manifest.json",
-  themeColor: "#8b5cf6",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

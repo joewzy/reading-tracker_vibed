@@ -1,0 +1,139 @@
+.discoverContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    position: relative;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.deck {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+    height: 480px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.swipeCard {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    padding: 2rem;
+    border-radius: 24px;
+    background: rgba(20, 25, 45, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    cursor: grab;
+}
+
+.swipeCard:active {
+    cursor: grabbing;
+}
+
+.sparkleIcon {
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    color: var(--primary-glow);
+    opacity: 0.1;
+}
+
+.cardTop {
+    text-align: center;
+    margin-bottom: 2rem;
+    flex: 1;
+}
+
+.cardTitle {
+    font-family: var(--font-serif);
+    font-size: 1.75rem;
+    background: linear-gradient(135deg, #fff 0%, var(--primary-glow) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+}
+
+.cardAuthor {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+.cardReason {
+    background: rgba(139, 92, 246, 0.1);
+    border-left: 3px solid var(--primary);
+    padding: 1rem;
+    border-radius: 0 8px 8px 0;
+    color: var(--text-main);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: auto;
+}
+
+.cardStats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 2rem;
+}
+
+.actionHint {
+    position: absolute;
+    top: 2rem;
+    font-weight: 800;
+    font-size: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    opacity: 0;
+}
+
+.likeHint {
+    left: 2rem;
+    color: var(--success);
+    border: 3px solid var(--success);
+    transform: rotate(-15deg);
+}
+
+.nopeHint {
+    right: 2rem;
+    color: var(--warning);
+    border: 3px solid var(--warning);
+    transform: rotate(15deg);
+}
+
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    color: var(--primary-glow);
+}
+
+.loaderSpin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    100% { transform: rotate(360deg); }
+}
+
+.emptyState {
+    text-align: center;
+    color: var(--text-muted);
+}
