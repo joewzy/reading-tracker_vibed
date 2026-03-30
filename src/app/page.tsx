@@ -25,6 +25,7 @@ import ThemeRegistry from '@/components/ThemeRegistry'
 import XPShop from '@/components/XPShop'
 import ChallengePanel from '@/components/ChallengePanel'
 import AiBuddy from '@/components/AiBuddy'
+import SummaryModal from '@/components/SummaryModal'
 
 interface Book { id: string; title: string; author: string; totalPages: number; currentPage: number; status: string; coverImage?: string | null; description?: string | null }
 interface ActivitySession { id: string; pagesRead: number; duration: number | null; date: string; book: { title: string } }
@@ -82,6 +83,7 @@ export default function Dashboard() {
   const [logPages, setLogPages] = useState<Record<string, string>>({})
   const [xpToast, setXpToast] = useState<{ xp: number; achievement?: string } | null>(null)
   const [notesPanel, setNotesPanel] = useState<{ bookId: string; bookTitle: string } | null>(null)
+  const [summaryData, setSummaryData] = useState<{title: string, author: string} | null>(null)
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
   const [authForm, setAuthForm] = useState({ name: '', email: '', password: '' })
   const [authError, setAuthError] = useState('')
@@ -92,6 +94,21 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{ id: string; title: string; author: string; totalPages: number | string; coverImage?: string | null; description?: string | null }[]>([])
   const [isSearching, setIsSearching] = useState(false)
+
+  const handleLogSummary = async () => {
+    try {
+      const res = await fetch('/api/user/xp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: 15, reason: 'AI Summary' })
+      })
+      if (res.ok) {
+        setXpToast({ xp: 15, achievement: 'Read a Summary' })
+        setUserStats(prev => ({ ...prev, xp: prev.xp + 15 }))
+        fetchData() // Refresh server state if needed
+      }
+    } catch (e) { console.error(e) }
+  }
 
   const handleSearchBooks = async () => {
     if (!searchQuery.trim()) return
@@ -171,8 +188,18 @@ export default function Dashboard() {
   const handleAddBook = async (e: React.FormEvent | null, data?: { title?: string; author?: string; totalPages?: string; coverImage?: string | null; description?: string | null }) => {
     if (e) e.preventDefault()
     const payload = data || newBook
-    const r = await fetch('/api/books', { method: 'POST', body: JSON.stringify(payload) })
-    if (r.ok) { vibrateSuccess(); setNewBook({ title: '', author: '', totalPages: '', coverImage: null, description: '' }); setShowAddBook(false); fetchData(); boom() }
+    const r = await fetch('/api/books', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload) 
+    })
+    if (r.ok) { 
+        vibrateSuccess(); setNewBook({ title: '', author: '', totalPages: '', coverImage: null, description: '' }); setShowAddBook(false); fetchData(); boom() 
+    } else {
+        const err = await r.json()
+        alert(`Failed to add book: ${err.error} - ${err.details || ''}`)
+        console.error("DEBUG Add Book Error:", err)
+    }
   }
 
   const handleDeleteBook = async (id: string) => {
@@ -501,6 +528,7 @@ export default function Dashboard() {
                   <DiscoverSwiper 
                     recentlyReadBooks={completedBooks.slice(0, 5).map(b => ({ title: b.title }))} 
                     onRefreshLibrary={fetchData} 
+                    onReadSummary={(title, author) => setSummaryData({ title, author })}
                   />
                 </motion.div>
               )}
@@ -679,6 +707,13 @@ export default function Dashboard() {
 
       <ReadingTimer books={books} onSessionLogged={fetchData} />
       <BookNotes bookId={notesPanel?.bookId || ''} bookTitle={notesPanel?.bookTitle || ''} isOpen={!!notesPanel} onClose={() => setNotesPanel(null)} />
+      <SummaryModal 
+        isOpen={!!summaryData} 
+        title={summaryData?.title || ''} 
+        author={summaryData?.author || ''} 
+        onClose={() => setSummaryData(null)} 
+        onLogSummary={handleLogSummary} 
+      />
       
       {/* Mobile Bottom Navigation */}
       <MobileNav 

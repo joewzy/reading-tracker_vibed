@@ -16,9 +16,10 @@ interface Recommendation {
 interface DiscoverSwiperProps {
     recentlyReadBooks: { title: string }[]
     onRefreshLibrary: () => void
+    onReadSummary?: (title: string, author: string) => void
 }
 
-export default function DiscoverSwiper({ recentlyReadBooks, onRefreshLibrary }: DiscoverSwiperProps) {
+export default function DiscoverSwiper({ recentlyReadBooks, onRefreshLibrary, onReadSummary }: DiscoverSwiperProps) {
     const [recs, setRecs] = useState<Recommendation[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -51,6 +52,7 @@ export default function DiscoverSwiper({ recentlyReadBooks, onRefreshLibrary }: 
             // Add book to library
             await fetch('/api/books', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     title: rec.title,
                     author: rec.author,
@@ -106,12 +108,13 @@ export default function DiscoverSwiper({ recentlyReadBooks, onRefreshLibrary }: 
                 <AnimatePresence>
                     {recs.map((rec, index) => {
                         return (
-                            <SwipeCard 
-                                key={rec.title} 
-                                index={index}
-                                rec={rec} 
-                                onSwipe={handleSwipe} 
-                            />
+                                <SwipeCard 
+                                    key={rec.title} 
+                                    index={index}
+                                    rec={rec} 
+                                    onSwipe={handleSwipe}
+                                    onReadSummary={onReadSummary}
+                                />
                         )
                     }).reverse()}
                 </AnimatePresence>
@@ -124,7 +127,7 @@ export default function DiscoverSwiper({ recentlyReadBooks, onRefreshLibrary }: 
     )
 }
 
-function SwipeCard({ rec, index, onSwipe }: { rec: Recommendation, index: number, onSwipe: (rec: Recommendation, dir: 'left'|'right') => void }) {
+function SwipeCard({ rec, index, onSwipe, onReadSummary }: { rec: Recommendation, index: number, onSwipe: (rec: Recommendation, dir: 'left'|'right') => void, onReadSummary?: (title: string, author: string) => void }) {
     const isFront = index === 0
     const x = useMotionValue(0)
     
@@ -183,6 +186,17 @@ function SwipeCard({ rec, index, onSwipe }: { rec: Recommendation, index: number
                 <BookOpen size={14} />
                 <span>{rec.totalPages} pages</span>
             </div>
+
+            <button 
+                className="btn-primary" 
+                style={{ width: '100%', marginTop: '1rem', padding: '0.65rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', background: 'rgba(139, 92, 246, 0.15)', color: 'var(--primary-glow)', border: '1px solid rgba(139, 92, 246, 0.3)' }}
+                onClick={(e) => {
+                    e.stopPropagation()
+                    if (onReadSummary) onReadSummary(rec.title, rec.author)
+                }}
+            >
+                ⚡ Read 15-Min Summary
+            </button>
         </motion.div>
     )
 }

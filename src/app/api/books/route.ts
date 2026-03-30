@@ -25,17 +25,23 @@ export async function POST(request: Request) {
 
     try {
         const json = await request.json()
-        const { title, author, totalPages } = json
+        const { title, author, totalPages, coverImage, description, status } = json
 
         if (!title || !author || !totalPages) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
+        let parsedPages = parseInt(String(totalPages).replace(/[^0-9]/g, ''), 10)
+        if (isNaN(parsedPages) || parsedPages <= 0) parsedPages = 1 // Fallback
+
         const book = await prisma.book.create({
             data: {
-                title,
-                author,
-                totalPages: parseInt(totalPages),
+                title: String(title),
+                author: String(author),
+                totalPages: parsedPages,
+                ...(coverImage && { coverImage: String(coverImage) }),
+                ...(description && { description: String(description) }),
+                ...(status && { status: String(status) }),
                 userId: session.user.id,
             },
         })
