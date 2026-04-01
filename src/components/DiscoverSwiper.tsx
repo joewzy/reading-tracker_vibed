@@ -22,23 +22,31 @@ interface DiscoverSwiperProps {
 export default function DiscoverSwiper({ recentlyReadBooks, onRefreshLibrary, onReadSummary }: DiscoverSwiperProps) {
     const [recs, setRecs] = useState<Recommendation[]>([])
     const [loading, setLoading] = useState(true)
+    const [isFetchingMore, setIsFetchingMore] = useState(false)
     const [error, setError] = useState('')
+    const [seenTitles, setSeenTitles] = useState<Set<string>>(new Set())
 
-    const fetchRecommendations = async () => {
-        setLoading(true)
+    const fetchRecommendations = async (append = false) => {
+        if (append) setIsFetchingMore(true)
+        else setLoading(true)
         setError('')
         try {
             const res = await fetch('/api/discover', {
                 method: 'POST',
-                body: JSON.stringify({ recentlyReadBooks })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recentlyReadBooks, seenTitles: Array.from(seenTitles) })
             })
             const data = await res.json()
             if (data.error) throw new Error(data.error)
-            setRecs(data.recommendations)
+            // Filter out any books the user has already seen
+            const fresh = (data.recommendations as Recommendation[]).filter(r => !seenTitles.has(r.title))
+            setSeenTitles(prev => new Set([...prev, ...fresh.map(r => r.title)]))
+            setRecs(prev => append ? [...prev, ...fresh] : fresh)
         } catch (err: any) {
             setError('Failed to fetch recommendations. Buddy might be sleeping.')
         } finally {
             setLoading(false)
+            setIsFetchingMore(false)
         }
     }
 
@@ -66,7 +74,13 @@ export default function DiscoverSwiper({ recentlyReadBooks, onRefreshLibrary, on
             vibrateMedium()
         }
 
-        setRecs(prev => prev.slice(1)) // Remove top card
+        const remaining = recs.slice(1)
+        setRecs(remaining)
+
+        // Auto-prefetch when running low (2 cards left)
+        if (remaining.length <= 2 && !isFetchingMore) {
+            fetchRecommendations(true) // append mode
+        }
     }
 
     if (loading) {
@@ -84,19 +98,30 @@ export default function DiscoverSwiper({ recentlyReadBooks, onRefreshLibrary, on
         return (
             <div className={styles.discoverContainer}>
                 <p style={{ color: 'var(--warning)' }}>{error}</p>
-                <button className="btn-primary" onClick={fetchRecommendations} style={{ marginTop: '1rem' }}>Try Again</button>
+                <button className="btn-primary" onClick={() => fetchRecommendations()} style={{ marginTop: '1rem' }}>Try Again</button>
             </div>
         )
     }
 
     if (recs.length === 0) {
+        // If currently fetching more in background, show loader instead of dead end
+        if (isFetchingMore) {
+            return (
+                <div className={styles.discoverContainer}>
+                    <div className={styles.loading}>
+                        <Loader2 size={40} className={styles.loaderSpin} />
+                        <p>Buddy is finding more great books for you...</p>
+                    </div>
+                </div>
+            )
+        }
         return (
             <div className={styles.discoverContainer}>
                 <div className={styles.emptyState}>
                     <Sparkles size={48} opacity={0.2} style={{ margin: '0 auto 1rem' }} />
-                    <h3>No more recommendations!</h3>
-                    <p>You've swiped through all of Buddy's current picks.</p>
-                    <button className="btn-primary" onClick={fetchRecommendations} style={{ marginTop: '1.5rem' }}>Ask for More</button>
+                    <h3>You're all caught up! 🎉</h3>
+                    <p>You've explored all of Buddy's current picks.<br/>Ready for a fresh batch?</p>
+                    <button className="btn-primary" onClick={() => fetchRecommendations(true)} style={{ marginTop: '1.5rem' }}>✨ Get Fresh Picks</button>
                 </div>
             </div>
         )
@@ -119,9 +144,10 @@ export default function DiscoverSwiper({ recentlyReadBooks, onRefreshLibrary, on
                     }).reverse()}
                 </AnimatePresence>
             </div>
-            <div style={{ marginTop: '2rem', display: 'flex', gap: '2rem', color: 'var(--text-muted)' }}>
+            <div style={{ marginTop: '2rem', display: 'flex', gap: '2rem', color: 'var(--text-muted)', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><X size={16} color="var(--warning)" /> Pass (Swipe Left)</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Check size={16} color="var(--success)" /> Add (Swipe Right)</div>
+                {isFetchingMore && <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', opacity: 0.6 }}><Loader2 size={13} className={styles.loaderSpin} /> Loading more...</div>}
             </div>
         </div>
     )

@@ -64,12 +64,16 @@
     flex-direction: column;
     overflow: hidden;
     padding: 0 !important;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    background: rgba(12, 14, 28, 0.97) !important;
+    backdrop-filter: blur(28px) !important;
+    -webkit-backdrop-filter: blur(28px) !important;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75);
+    border: 1px solid rgba(139, 92, 246, 0.2);
 }
 
 .chatHeader {
     padding: 1.25rem 1.5rem;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(20, 15, 40, 0.9);
     border-bottom: 1px solid var(--glass-border);
     display: flex;
     justify-content: space-between;
