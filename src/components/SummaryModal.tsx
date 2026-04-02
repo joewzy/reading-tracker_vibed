@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, X, Sparkles, BookOpen, CheckCircle } from 'lucide-react'
+import { Loader2, X, Sparkles, BookOpen, CheckCircle, Clock } from 'lucide-react'
 import { vibrateLight, vibrateSuccess } from '@/utils/haptics'
 import styles from './SummaryModal.module.css'
 
@@ -16,57 +16,81 @@ export default function SummaryModal({ isOpen, title, author, onClose, onLogSumm
     const [summary, setSummary] = useState('')
     const [isGenerating, setIsGenerating] = useState(false)
     const [completed, setCompleted] = useState(false)
+    const [retryCountdown, setRetryCountdown] = useState<number | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
+    const retryTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+    const fetchStream = useCallback(async () => {
+        setIsGenerating(true)
+        setSummary('')
+        setRetryCountdown(null)
+        if (retryTimerRef.current) clearInterval(retryTimerRef.current)
+
+        try {
+            const response = await fetch('/api/summary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, author })
+            })
+
+            // ── Handle quota exceeded
+            if (response.status === 429) {
+                const data = await response.json()
+                const seconds = data.retryAfter ?? 60
+                setRetryCountdown(seconds)
+                setIsGenerating(false)
+                // Auto-countdown
+                retryTimerRef.current = setInterval(() => {
+                    setRetryCountdown(prev => {
+                        if (prev === null || prev <= 1) {
+                            clearInterval(retryTimerRef.current!)
+                            return null
+                        }
+                        return prev - 1
+                    })
+                }, 1000)
+                return
+            }
+
+            if (!response.body) throw new Error("No response body")
+            
+            const reader = response.body.getReader()
+            const decoder = new TextDecoder()
+            
+            while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                
+                const textChunk = decoder.decode(value, { stream: true })
+                setSummary(prev => prev + textChunk)
+                
+                if (scrollRef.current) {
+                    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
+                    if (scrollTop + clientHeight > scrollHeight - 200) {
+                        scrollRef.current.scrollTo({ top: scrollHeight, behavior: 'smooth' })
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Summary stream error:", error)
+            setSummary("Failed to generate summary. The AI nexus might be temporarily offline.")
+        } finally {
+            setIsGenerating(false)
+            vibrateSuccess()
+        }
+    }, [title, author])
 
     useEffect(() => {
         if (!isOpen) {
             setSummary('')
             setCompleted(false)
             setIsGenerating(false)
+            setRetryCountdown(null)
+            if (retryTimerRef.current) clearInterval(retryTimerRef.current)
             return
         }
-
-        const fetchStream = async () => {
-            setIsGenerating(true)
-            setSummary('')
-            try {
-                const response = await fetch('/api/summary', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title, author })
-                })
-
-                if (!response.body) throw new Error("No response body")
-                
-                const reader = response.body.getReader()
-                const decoder = new TextDecoder()
-                
-                while (true) {
-                    const { done, value } = await reader.read()
-                    if (done) break
-                    
-                    const textChunk = decoder.decode(value, { stream: true })
-                    setSummary(prev => prev + textChunk)
-                    
-                    // Auto-scroll slightly as it generates, but don't force it aggressively if user scrolling
-                    if (scrollRef.current) {
-                        const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
-                        if (scrollTop + clientHeight > scrollHeight - 200) {
-                            scrollRef.current.scrollTo({ top: scrollHeight, behavior: 'smooth' })
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error("Summary stream error:", error)
-                setSummary("Failed to generate summary. The multiverse nexus might be temporarily offline.")
-            } finally {
-                setIsGenerating(false)
-                vibrateSuccess()
-            }
-        }
-
         fetchStream()
-    }, [isOpen, title, author])
+    }, [isOpen, fetchStream])
 
     const handleComplete = () => {
         if (completed) return
@@ -132,6 +156,25 @@ export default function SummaryModal({ isOpen, title, author, onClose, onLogSumm
 
                         <div className={styles.contentWrap} ref={scrollRef}>
                             <div className={styles.readingEnvironment}>
+
+                                {/* Quota exceeded state */}
+                                {retryCountdown !== null && (
+                                    <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                                        <Clock size={40} style={{ margin: '0 auto 1rem', opacity: 0.4, display: 'block' }} />
+                                        <h3 style={{ marginBottom: '0.5rem' }}>Buddy is taking a breather ☕</h3>
+                                        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>The AI hit its free tier limit. Auto-retrying in...</p>
+                                        <div style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--primary-glow)' }}>{retryCountdown}s</div>
+                                        <button 
+                                            className="btn-primary" 
+                                            style={{ marginTop: '1.5rem' }} 
+                                            onClick={fetchStream}
+                                            disabled={retryCountdown > 0}
+                                        >
+                                            {retryCountdown > 0 ? `Retry in ${retryCountdown}s` : '✨ Retry Now'}
+                                        </button>
+                                    </div>
+                                )}
+
                                 {renderMarkdown(summary)}
                                 
                                 {isGenerating && (
