@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey)
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' })
 
         // Fetch user's notes for this book to provide context
         const userNotes = await prisma.note.findMany({

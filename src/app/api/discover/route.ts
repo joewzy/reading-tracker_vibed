@@ -58,7 +58,7 @@ Each object must have the following exact schema:
 `
 
         try {
-            const aiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+            const aiModel = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' })
             const aiResponse = await aiModel.generateContent(prompt)
             const textResponse = aiResponse.response.text()
             

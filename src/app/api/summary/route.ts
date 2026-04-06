@@ -64,7 +64,7 @@ Structure the response beautifully using Markdown spacing:
 Write directly to the user in a motivational, intelligent tone.
 `
 
-        const aiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
+        const aiModel = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' })
         const result = await aiModel.generateContentStream(prompt)
 
         const encoder = new TextEncoder()
