@@ -137,3 +137,141 @@
     text-align: center;
     color: var(--text-muted);
 }
+
+/* ── Mood Picker ───────────────────────────────────── */
+.moodPicker {
+    width: 100%;
+    max-width: 420px;
+    padding: 1.5rem 1rem;
+}
+
+.moodPickerHeader {
+    text-align: center;
+    margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.moodPickerHeader h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff 0%, var(--primary-glow) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0.25rem 0 0;
+}
+
+.moodPickerHeader p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.moodGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.moodChip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 1rem 0.5rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.moodChip::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, var(--mood-color, var(--primary)), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.moodChip:hover {
+    border-color: var(--mood-color, var(--primary));
+    background: rgba(255, 255, 255, 0.07);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--mood-color, var(--primary)) 25%, transparent);
+}
+
+.moodChip:hover::before {
+    opacity: 0.08;
+}
+
+.moodEmoji {
+    font-size: 1.8rem;
+    line-height: 1;
+    position: relative;
+    z-index: 1;
+}
+
+.moodLabel {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    line-height: 1.2;
+}
+
+/* ── Active Mood Bar ───────────────────────────────── */
+.activeMoodBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 380px;
+    padding: 0.5rem 0.85rem;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid color-mix(in srgb, var(--mood-color, var(--primary)) 40%, transparent);
+    margin-bottom: 1.25rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.changeMoodBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--mood-color, var(--primary-glow));
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+    border-radius: 100px;
+    transition: background 0.2s;
+}
+
+.changeMoodBtn:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.moodLoadingEmoji {
+    font-size: 3rem;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    display: block;
+    animation: float 2s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+

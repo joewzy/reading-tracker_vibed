@@ -52,6 +52,14 @@ export default function SummaryModal({ isOpen, title, author, onClose, onLogSumm
                 return
             }
 
+            // ── Handle missing API key
+            if (response.status === 503) {
+                const data = await response.json()
+                setSummary(`## ⚙️ Setup Required\n\nThe AI summary feature requires a **Gemini API key**.\n\nAdd your key to \`.env\`:\n\`\`\`\nGEMINI_API_KEY="your-key-here"\n\`\`\`\nGet a free key at [aistudio.google.com](https://aistudio.google.com)`)
+                setIsGenerating(false)
+                return
+            }
+
             if (!response.body) throw new Error("No response body")
             
             const reader = response.body.getReader()

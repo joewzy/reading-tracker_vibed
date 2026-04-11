@@ -14,6 +14,14 @@ export async function POST(req: Request) {
         const session = await getServerSession(authOptions)
         if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+        // Check for API key before doing anything
+        if (!process.env.GEMINI_API_KEY) {
+            return NextResponse.json({
+                error: 'no_api_key',
+                message: 'GEMINI_API_KEY is not configured. Please add it to your .env file.'
+            }, { status: 503 })
+        }
+
         const { title, author } = await req.json()
 
         if (!title || !author) {
