@@ -455,7 +455,7 @@ export default function Dashboard() {
           <button className={styles.goalBtn} onClick={() => setShowGoalModal(true)}><Target size={15} /> {goal ? `${goal.target} pg goal` : 'Set Goal'}</button>
           <button className="btn-primary" onClick={() => setShowAddBook(true)}><Plus size={15} /> Add Book</button>
           <button className={styles.iconBtn} onClick={() => setShowSettings(true)}><Settings size={17} /></button>
-          <button className={styles.logoutBtn} onClick={() => signOut()}><LogOut size={17} /></button>
+          <button className={styles.logoutBtn} onClick={() => signOut({ callbackUrl: window.location.origin })}><LogOut size={17} /></button>
         </div>
       </motion.header>
 
